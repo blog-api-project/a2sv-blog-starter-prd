@@ -9,10 +9,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+
 type TokenController struct {
 	tokenUseCase usecases.ITokenUseCase
 	jwtService    services.IJWTService
 }
+
 
 func NewTokenController(
 	tokenUseCase usecases.ITokenUseCase,
@@ -24,7 +26,7 @@ func NewTokenController(
 	}
 }
 
-// validates an access token
+//validates an access token
 func (tc *TokenController) ValidateToken(c *gin.Context) {
 	var validateDTO dtos.ValidateTokenDTO
 	err := c.ShouldBindJSON(&validateDTO)
@@ -42,6 +44,7 @@ func (tc *TokenController) ValidateToken(c *gin.Context) {
 		c.IndentedJSON(http.StatusUnauthorized, gin.H{"error": "Token not found or expired"})
 		return
 	}
+
 	claims, err := tc.jwtService.ValidateJWT(validateDTO.AccessToken)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse token"})
@@ -62,6 +65,7 @@ func (tc *TokenController) RefreshToken(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
+
 	valid, err := tc.tokenUseCase.ValidateRefreshToken(refreshDTO.RefreshToken)
 	if err != nil {
 		c.IndentedJSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
@@ -85,15 +89,16 @@ func (tc *TokenController) RefreshToken(c *gin.Context) {
 		return
 	}
 
+	// Generate new access token
 	role, _ := claims["role"].(string)
-	newAccessToken, err := tc.tokenUseCase.RefreshAccessToken(userID, role)
+	newAccessTokenModel, err := tc.tokenUseCase.RefreshAccessToken(userID, role)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
 	c.IndentedJSON(http.StatusOK, gin.H{
-		"access_token": newAccessToken,
+		"access_token": newAccessTokenModel.Token,
 		"token_type":   "Bearer",
 		"expires_in":   900, // 15 minutes
 	})
