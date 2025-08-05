@@ -4,6 +4,7 @@ import (
 	"blog_api/Delivery/controllers"
 	"blog_api/Delivery/routers"
 	infrastructure "blog_api/Infrastructure"
+	repositories "blog_api/Repositories"
 	"blog_api/Repositories/database"
 	usecases "blog_api/Usecases"
 	"log"
@@ -31,8 +32,8 @@ func main() {
 	}()
 
 	// Initialize repositories
-	userRepo := database.NewMongoUserRepository(db.Collection("users"))
-	tokenRepo := database.NewMongoTokenRepository(db.Collection("access_tokens"), db.Collection("refresh_tokens"))
+	userRepo := repositories.NewMongoUserRepository(db.Collection("users"))
+	tokenRepo := repositories.NewMongoTokenRepository(db.Collection("access_tokens"), db.Collection("refresh_tokens"))
 	
 	// Initialize services
 	passwordSvc := infrastructure.NewPasswordService()
