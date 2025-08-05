@@ -1,8 +1,9 @@
-package database
+package repositories
 
 import (
 	repositories "blog_api/Domain/contracts/repositories"
 	"blog_api/Domain/models"
+	"blog_api/Repositories/database"
 	"errors"
 	"time"
 
@@ -11,9 +12,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+
 type mongoUserRepository struct {
 	collection *mongo.Collection
 }
+
 
 func NewMongoUserRepository(collection *mongo.Collection) repositories.IUserRepository {
 	return &mongoUserRepository{collection: collection}
@@ -21,12 +24,10 @@ func NewMongoUserRepository(collection *mongo.Collection) repositories.IUserRepo
 
 //creates a new user in the database
 func (r *mongoUserRepository) CreateUser(user *models.User) error {
-	ctx, cancel := DefaultTimeout()
+	ctx, cancel := database.DefaultTimeout()
 	defer cancel()
 	objectID := primitive.NewObjectID()
 	user.ID = objectID.Hex()
-
-	// Convert domain model to BSON document
 	doc := bson.M{
 		"_id":                    objectID,
 		"role_id":                user.RoleID,
@@ -53,7 +54,7 @@ func (r *mongoUserRepository) CreateUser(user *models.User) error {
 
 //retrieves a user by ID
 func (r *mongoUserRepository) GetUserByID(userID string) (*models.User, error) {
-	ctx, cancel := DefaultTimeout()
+	ctx, cancel := database.DefaultTimeout()
 	defer cancel()
 
 	objectID, err := primitive.ObjectIDFromHex(userID)
@@ -75,7 +76,7 @@ func (r *mongoUserRepository) GetUserByID(userID string) (*models.User, error) {
 
 // retrieves a user by email
 func (r *mongoUserRepository) GetUserByEmail(email string) (*models.User, error) {
-	ctx, cancel := DefaultTimeout()
+	ctx, cancel := database.DefaultTimeout()
 	defer cancel()
 
 	var userData bson.M
@@ -92,7 +93,7 @@ func (r *mongoUserRepository) GetUserByEmail(email string) (*models.User, error)
 
 //retrieves a user by username
 func (r *mongoUserRepository) GetUserByUsername(username string) (*models.User, error) {
-	ctx, cancel := DefaultTimeout()
+	ctx, cancel := database.DefaultTimeout()
 	defer cancel()
 
 	var userData bson.M
@@ -107,9 +108,9 @@ func (r *mongoUserRepository) GetUserByUsername(username string) (*models.User, 
 	return r.documentToUser(userData)
 }
 
-//checks if email already exists
+// checks if email already exists
 func (r *mongoUserRepository) CheckEmailExists(email string) (bool, error) {
-	ctx, cancel := DefaultTimeout()
+	ctx, cancel := database.DefaultTimeout()
 	defer cancel()
 
 	count, err := r.collection.CountDocuments(ctx, bson.M{"email": email})
@@ -122,7 +123,7 @@ func (r *mongoUserRepository) CheckEmailExists(email string) (bool, error) {
 
 //checks if username already exists
 func (r *mongoUserRepository) CheckUsernameExists(username string) (bool, error) {
-	ctx, cancel := DefaultTimeout()
+	ctx, cancel := database.DefaultTimeout()
 	defer cancel()
 
 	count, err := r.collection.CountDocuments(ctx, bson.M{"username": username})
@@ -133,7 +134,7 @@ func (r *mongoUserRepository) CheckUsernameExists(username string) (bool, error)
 	return count > 0, nil
 }
 
-//  converts a BSON document to a User model
+//converts a BSON document to a User model
 func (r *mongoUserRepository) documentToUser(userData bson.M) (*models.User, error) {
 	user := &models.User{}
 
@@ -207,4 +208,52 @@ func (r *mongoUserRepository) documentToUser(userData bson.M) (*models.User, err
 	}
 
 	return user, nil
+}
+
+// updates an existing user in the database
+func (r *mongoUserRepository) UpdateUser(user *models.User) error {
+	ctx, cancel := database.DefaultTimeout()
+	defer cancel()
+
+	objectID, err := primitive.ObjectIDFromHex(user.ID)
+	if err != nil {
+		return errors.New("invalid user ID")
+	}
+	doc := bson.M{
+		"role_id":                user.RoleID,
+		"oauth_id":               user.OAuthID,
+		"username":               user.Username,
+		"first_name":             user.FirstName,
+		"last_name":              user.LastName,
+		"email":                  user.Email,
+		"password":               user.Password,
+		"bio":                    user.Bio,
+		"profile_picture":        user.ProfilePicture,
+		"contact_info":           user.ContactInfo,
+		"is_active":              user.IsActive,
+		"email_verified":         user.EmailVerified,
+		"reset_password_token":   user.ResetPasswordToken,
+		"reset_password_expires": user.ResetPasswordExpires,
+		"updated_at":             user.UpdatedAt,
+	}
+
+	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, bson.M{"$set": doc})
+	return err
+}
+
+// retrieves a user by reset token
+func (r *mongoUserRepository) GetUserByResetToken(token string) (*models.User, error) {
+	ctx, cancel := database.DefaultTimeout()
+	defer cancel()
+
+	var userData bson.M
+	err := r.collection.FindOne(ctx, bson.M{"reset_password_token": token}).Decode(&userData)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("invalid or expired reset token")
+		}
+		return nil, err
+	}
+
+	return r.documentToUser(userData)
 } 
