@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+
 type UserController struct {
 	userUsecase  usecases.IUserUseCase
 	tokenUsecase usecases.ITokenUseCase
@@ -66,7 +67,7 @@ func (uc *UserController) Login(c *gin.Context) {
 		return
 	}
 	
-	accessToken, refreshToken, err := uc.tokenUsecase.GenerateAndStoreTokens(user.ID, user.RoleID)
+	accessTokenModel, refreshTokenModel, err := uc.tokenUsecase.GenerateAndStoreTokens(user.ID, user.RoleID)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate tokens"})
 		return
@@ -74,13 +75,12 @@ func (uc *UserController) Login(c *gin.Context) {
 	
 	c.IndentedJSON(http.StatusOK, gin.H{
 		"message": "Login successful",
-		"access_token": accessToken,
-		"refresh_token": refreshToken,
+		"access_token": accessTokenModel.Token,
+		"refresh_token": refreshTokenModel.Token,
 		"token_type": "Bearer",
-		"expires_in": 3600, // 1 hour
+		"expires_in": 900, // 15 minutes
 	})
 }
-
 
 func (uc *UserController) Logout(c *gin.Context) {
 	var logoutDTO dtos.LogoutDTO
@@ -89,7 +89,6 @@ func (uc *UserController) Logout(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-	
 	claims, err := uc.jwtService.ValidateJWT(logoutDTO.AccessToken)
 	if err != nil {
 		c.IndentedJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
@@ -101,7 +100,7 @@ func (uc *UserController) Logout(c *gin.Context) {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Invalid token claims"})
 		return
 	}
-	
+
 	err = uc.userUsecase.LogoutUser(userID)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Failed to logout"})
@@ -111,4 +110,4 @@ func (uc *UserController) Logout(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
 
- 
+
