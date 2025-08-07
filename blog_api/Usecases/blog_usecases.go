@@ -3,8 +3,9 @@ package usecases
 import (
 	"blog_api/Domain/contracts/repositories"
 	"blog_api/Domain/models"
-	"time"
 	"errors"
+	"strings"
+	"time"
 )
 
 type BlogUseCase struct {
@@ -34,4 +35,79 @@ func (uc *BlogUseCase) CreateBlog(blog *models.Blog, AuthorID string) error {
 	}
 	return nil
 
+}
+
+func (uc *BlogUseCase) GetBlogs(query *models.BlogQuery)([]models.Blog, int,error){
+
+	
+	if query.Page <= 0{
+		query.Page = 1
+	}
+	if query.PageSize <= 0{
+		query.PageSize = 10
+	}
+	if query.SortBy == ""{
+		query.SortBy = "recent"
+
+	}
+	blog,total,err := uc.BlogRepo.GetBlogs(query)
+	if err != nil{
+		return nil , 0,err
+	}
+	 
+	return blog,total,err
+}
+
+func (uc *BlogUseCase) UpdateBlog(input *models.Blog, blogID string, authorID string) (*models.Blog, error) {
+	blog, err := uc.BlogRepo.GetBlogByID(blogID)
+	if err != nil {
+		return nil, errors.New("unable to retrieve the blog")
+	}
+
+	if blog.AuthorID != authorID {
+		return nil, errors.New("unauthorized access: you are not permitted to update this blog")
+	}
+
+	input.Title = strings.TrimSpace(input.Title)
+	input.Content = strings.TrimSpace(input.Content)
+
+	if input.Title == "" {
+		return nil, errors.New("blog title must not be empty")
+	}
+	if input.Content == "" {
+		return nil, errors.New("blog content must not be empty")
+	}
+
+	blog.Title = input.Title
+	blog.Content = input.Content
+	blog.Tags = input.Tags
+
+	updatedBlog, err := uc.BlogRepo.UpdateBlog(blog, blogID)
+	if err != nil {
+		return nil, errors.New("failed to update the blog")
+	}
+
+	return updatedBlog, nil
+}
+
+func (uc *BlogUseCase) DeleteBlog(blogID string, authorID string) error {
+	if strings.TrimSpace(blogID) == "" {
+		return errors.New("invalid blog ID provided")
+	}
+
+	blog, err := uc.BlogRepo.GetBlogByID(blogID)
+	if err != nil {
+		return errors.New("blog not found")
+	}
+
+	if blog.AuthorID != authorID {
+		return errors.New("unauthorized access: you are not permitted to delete this blog")
+	}
+
+	err = uc.BlogRepo.DeleteBlog(blogID)
+	if err != nil {
+		return errors.New("failed to delete the blog")
+	}
+
+	return nil
 }
