@@ -33,6 +33,9 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
 
   {
          blogRoutes.POST("/create", blogController.CreateBlog)
+		 blogRoutes.GET("/",blogController.GetBlogs)
+		 blogRoutes.PUT("/:id",blogController.UpdateBlogHandler)
+	     blogRoutes.DELETE("/:id",blogController.DeleteBlogHandler)
   }
 
   return router
