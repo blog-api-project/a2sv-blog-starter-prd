@@ -24,3 +24,20 @@ type UploadedImage struct {
 	Size     int64
 	Data     []byte
 }
+
+type BlogQuery struct {
+    Page     int
+    PageSize int
+    SortBy   string
+	Title    string
+	Author   string
+	Tags     string
+
+
+}
+type PaginationMeta struct {
+	TotalPages   int
+	CurrentPage  int
+	TotalPosts   int
+	PostsPerPage int
+}
