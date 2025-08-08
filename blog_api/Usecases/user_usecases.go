@@ -204,3 +204,87 @@ func generateResetToken() (string, error) {
 	}
 	return hex.EncodeToString(bytes), nil
 }
+
+// promotes a user to admin 
+func (uc *UserUseCase) PromoteUser(adminID, targetUserID string) error {
+	if adminID == targetUserID {
+		return errors.New("admin cannot promote themselves")
+	}
+	admin, err := uc.userRepo.GetUserByID(adminID)
+	if err != nil {
+		return errors.New("acting admin not found")
+	}
+	if admin.RoleID != "admin" {
+		return errors.New("only admins can promote users")
+	}
+	user, err := uc.userRepo.GetUserByID(targetUserID)
+	if err != nil {
+		return errors.New("target user not found")
+	}
+	if user.RoleID == "admin" {
+		return errors.New("user is already an admin")
+	}
+	return uc.userRepo.UpdateUserRole(targetUserID, "admin")
+}
+
+// demotes an admin to user
+func (uc *UserUseCase) DemoteUser(adminID, targetUserID string) error {
+	if adminID == targetUserID {
+		return errors.New("admin cannot demote themselves")
+	}
+	admin, err := uc.userRepo.GetUserByID(adminID)
+	if err != nil {
+		return errors.New("acting admin not found")
+	}
+	if admin.RoleID != "admin" {
+		return errors.New("only admins can demote users")
+	}
+	user, err := uc.userRepo.GetUserByID(targetUserID)
+	if err != nil {
+		return errors.New("target user not found")
+	}
+	if user.RoleID != "admin" {
+		return errors.New("user is not an admin")
+	}
+	adminCount, err := uc.userRepo.GetAdminCount()
+	if err != nil {
+		return errors.New("failed to count admins")
+	}
+	if adminCount <= 1 {
+		return errors.New("cannot demote the last admin")
+	}
+	return uc.userRepo.UpdateUserRole(targetUserID, "user")
+}
+func (uc *UserUseCase) UpdateUserProfile(userID string, update *models.UserProfileUpdate) (*models.User, error) {
+	// Validate user exists
+	user, err := uc.userRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	// Prepare update fields
+	updateFields := make(map[string]interface{})
+	if update.FirstName != "" {
+		updateFields["first_name"] = update.FirstName
+	}
+	if update.LastName != "" {
+		updateFields["last_name"] = update.LastName
+	}
+	if update.Bio != "" {
+		updateFields["bio"] = update.Bio
+	}
+	if update.ProfilePicture != "" {
+		updateFields["profile_picture"] = update.ProfilePicture
+	}
+	if update.ContactInfo != "" {
+		updateFields["contact_info"] = update.ContactInfo
+	}
+	if len(updateFields) == 0 {
+		return user, nil // nothing to update
+	}
+	updateFields["updated_at"] = time.Now()
+	if err := uc.userRepo.UpdateUserProfile(userID, updateFields); err != nil {
+		return nil, err
+	}
+	// Return updated user
+	return uc.userRepo.GetUserByID(userID)
+}
