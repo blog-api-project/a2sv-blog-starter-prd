@@ -15,6 +15,8 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
 		userRoutes.POST("/register", userController.Register)
 		userRoutes.POST("/login", userController.Login)
 		userRoutes.POST("/logout", userController.Logout)
+		userRoutes.POST("/forgot-password", userController.ForgotPassword)
+		userRoutes.POST("/reset-password", userController.ResetPassword)
 	}
 
 	// Authentication routes
