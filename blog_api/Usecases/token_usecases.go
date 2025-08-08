@@ -11,19 +11,23 @@ import (
 type TokenUseCase struct {
 	tokenRepo repositories.ITokenRepository
 	jwtSvc    services.IJWTService
+    roleRepo  repositories.IRoleRepository
 }
 
+
 func NewTokenUseCase(
-	tokenRepo repositories.ITokenRepository,
-	jwtSvc services.IJWTService,
+    tokenRepo repositories.ITokenRepository,
+    jwtSvc services.IJWTService,
+    roleRepo repositories.IRoleRepository,
 ) *TokenUseCase {
 	return &TokenUseCase{
 		tokenRepo: tokenRepo,
 		jwtSvc:    jwtSvc,
+        roleRepo:  roleRepo,
 	}
 }
 
-//stores access and refresh tokens for a user
+// stores access and refresh tokens for a user
 func (uc *TokenUseCase) StoreTokens(accessToken *models.AccessToken, refreshToken *models.RefreshToken) error {
 	err := uc.tokenRepo.StoreAccessToken(accessToken)
 	if err != nil {
@@ -38,15 +42,20 @@ func (uc *TokenUseCase) StoreTokens(accessToken *models.AccessToken, refreshToke
 	return nil
 }
 
-//generates and stores tokens with proper expiration times
+// generates and stores tokens with proper expiration times
 func (uc *TokenUseCase) GenerateAndStoreTokens(userID, roleID string) (*models.AccessToken, *models.RefreshToken, error) {
-
-	accessTokenString, err := uc.jwtSvc.GenerateJWT(userID, roleID)
+    roleForClaim := roleID
+    if uc.roleRepo != nil && len(roleID) == 24 {
+        if role, err := uc.roleRepo.GetRoleByID(roleID); err == nil && role != nil && role.Role != "" {
+            roleForClaim = role.Role
+        }
+    }
+    accessTokenString, err := uc.jwtSvc.GenerateJWT(userID, roleForClaim)
 	if err != nil {
 		return nil, nil, err
 	}
 	
-	refreshTokenString, err := uc.jwtSvc.GenerateRefreshToken(userID)
+    refreshTokenString, err := uc.jwtSvc.GenerateRefreshToken(userID, roleID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -77,9 +86,8 @@ func (uc *TokenUseCase) GenerateAndStoreTokens(userID, roleID string) (*models.A
 	return accessToken, refreshToken, nil
 }
 
-//generates a new access token with proper expiration
+// generates a new access token with proper expiration
 func (uc *TokenUseCase) RefreshAccessToken(userID, roleID string) (*models.AccessToken, error) {
-	
 	accessTokenString, err := uc.jwtSvc.GenerateJWT(userID, roleID)
 	if err != nil {
 		return nil, err
@@ -94,8 +102,7 @@ func (uc *TokenUseCase) RefreshAccessToken(userID, roleID string) (*models.Acces
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	
-	
+
 	err = uc.tokenRepo.StoreAccessToken(accessToken)
 	if err != nil {
 		return nil, err
@@ -104,16 +111,17 @@ func (uc *TokenUseCase) RefreshAccessToken(userID, roleID string) (*models.Acces
 	return accessToken, nil
 }
 
-//validates an access token
+// validates an access token
 func (uc *TokenUseCase) ValidateAccessToken(token string) (bool, error) {
 	_, err := uc.jwtSvc.ValidateJWT(token)
 	if err != nil {
 		return false, err
 	}
+	
 	return uc.tokenRepo.ValidateAccessToken(token)
 }
 
-//validates a refresh token
+// validates a refresh token
 func (uc *TokenUseCase) ValidateRefreshToken(token string) (bool, error) {
 	_, err := uc.jwtSvc.ValidateRefreshToken(token)
 	if err != nil {
@@ -123,17 +131,17 @@ func (uc *TokenUseCase) ValidateRefreshToken(token string) (bool, error) {
 	return uc.tokenRepo.ValidateRefreshToken(token)
 }
 
-//revokes a specific access token
+// revokes a specific access token
 func (uc *TokenUseCase) RevokeAccessToken(token string) error {
 	return uc.tokenRepo.RevokeAccessToken(token)
 }
 
-//revokes a specific refresh token
+// revokes a specific refresh token
 func (uc *TokenUseCase) RevokeRefreshToken(token string) error {
 	return uc.tokenRepo.RevokeRefreshToken(token)
 }
 
-//revokes all tokens for a user
+// revokes all tokens for a user
 func (uc *TokenUseCase) RevokeAllUserTokens(userID string) error {
 	return uc.tokenRepo.RevokeAllUserTokens(userID)
 } 
