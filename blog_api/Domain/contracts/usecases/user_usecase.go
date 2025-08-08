@@ -11,4 +11,5 @@ type IUserUseCase interface {
 	LogoutUser(userID string) error
 	ForgotPassword(email string) error
 	ResetPassword(token, newPassword string) error
+	UpdateUserProfile(userID string, update *models.UserProfileUpdate) (*models.User, error)
 } 
