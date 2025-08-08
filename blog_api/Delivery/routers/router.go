@@ -8,19 +8,21 @@ import (
   "github.com/gin-gonic/gin"
 )
 
+
 func SetupRouter(userController *controllers.UserController, tokenController *controllers.TokenController,blogController *controllers.BlogController,jwtService services.IJWTService,
 ) *gin.Engine {
   router := gin.Default()
 
-	// User routes
-	userRoutes := router.Group("/api/users")
-	{
-		userRoutes.POST("/register", userController.Register)
-		userRoutes.POST("/login", userController.Login)
-		userRoutes.POST("/logout", userController.Logout)
-		userRoutes.POST("/forgot-password", userController.ForgotPassword)
-		userRoutes.POST("/reset-password", userController.ResetPassword)
-	}
+  // User routes
+  userRoutes := router.Group("/api/users")
+  {
+    userRoutes.POST("/register", userController.Register)
+    userRoutes.POST("/login", userController.Login)
+    userRoutes.POST("/logout", userController.Logout)
+    userRoutes.POST("/forgot-password", userController.ForgotPassword)
+    userRoutes.POST("/reset-password", userController.ResetPassword)
+  }
+
 
   // Authentication routes
   authRoutes := router.Group("/api/auth")
@@ -34,8 +36,12 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
   blogRoutes.Use(infrastructure.AuthMiddleware(jwtService))
 
   {
-         blogRoutes.POST("/create", blogController.CreateBlog)
-  }
+    blogRoutes.POST("/create", blogController.CreateBlog)
+    blogRoutes.GET("/", blogController.GetBlogs)
+    blogRoutes.PUT("/:id", blogController.UpdateBlogHandler)
+    blogRoutes.DELETE("/:id", blogController.DeleteBlogHandler)
 
+  }
   return router
+
 }

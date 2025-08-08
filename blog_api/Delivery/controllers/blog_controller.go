@@ -7,6 +7,8 @@ import (
 	usecases "blog_api/Domain/contracts/usecases"
 	"blog_api/Domain/models"
 	"io"
+	"math"
+
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -76,4 +78,75 @@ func (bc *BlogController) CreateBlog(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Blog created successfully"})
+
+}
+
+func (bc *BlogController) GetBlogs (c *gin.Context){
+
+	var BlogQueryParams dtos.BlogQueryDto
+	if err := c.ShouldBindQuery(&BlogQueryParams); err != nil{
+		c.JSON(http.StatusBadRequest,gin.H{"error":"Invalid Request"})
+		return
+	}
+
+	domainQuery := utils.ConvertToBlogQuery(BlogQueryParams)
+
+	blogs,total,err := bc.blogUseCase.GetBlogs(domainQuery)
+	if err != nil{
+		c.JSON(http.StatusBadGateway,gin.H{"error":err.Error()})
+		return 
+	}
+	paginationMeta := dtos.PaginationMetadataDTO{
+		TotalPages:  int(math.Ceil(float64(total) / float64(domainQuery.PageSize))),
+		CurrentPage: domainQuery.Page,
+		TotalPosts:  total,
+		PageSize:    domainQuery.PageSize,
+}
+
+	c.JSON(http.StatusOK,gin.H{
+		"blog":blogs,
+		"pagination":paginationMeta,
+
+	})
+
+
+}
+
+func (ct *BlogController) UpdateBlogHandler(c *gin.Context) {
+	blogID := c.Param("id")
+	userID := c.GetString("userID")
+
+	var updatedBlogDTO dtos.BlogDto
+	if err := c.ShouldBindWith(&updatedBlogDTO, binding.FormMultipart); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form data"})
+		return
+	}
+
+	blogModel := utils.ConvertToBlog(updatedBlogDTO,userID,nil)
+
+	updatedBlog, err := ct.blogUseCase.UpdateBlog(blogModel, blogID, userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":      "Blog updated successfully",
+		"updated_blog": updatedBlog,
+	})
+}
+
+func (bc *BlogController) DeleteBlogHandler(c *gin.Context){
+	blogID := c.Param("id")
+	userID := c.GetString("userID")
+
+	err := bc.blogUseCase.DeleteBlog(blogID,userID)
+	if err != nil{
+		c.JSON(http.StatusBadGateway,gin.H{
+			"error":err.Error()})
+			return
+	}
+	c.JSON(http.StatusOK,gin.H{"Message":"Blog Deleted Successfully"})
+	
+
 }
