@@ -12,17 +12,6 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
 ) *gin.Engine {
   router := gin.Default()
 
-<<<<<<< HEAD
-  // User routes
-  userRoutes := router.Group("/api/users")
-  {
-    userRoutes.POST("/register", userController.Register)
-    userRoutes.POST("/login", userController.Login)
-    userRoutes.POST("/logout", userController.Logout)
-    userRoutes.POST("/forgot-password", userController.ForgotPassword)
-    userRoutes.POST("/reset-password", userController.ResetPassword)
-  }
-=======
 	// User routes
 	userRoutes := router.Group("/api/users")
 	{
@@ -32,7 +21,6 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
 		userRoutes.POST("/forgot-password", userController.ForgotPassword)
 		userRoutes.POST("/reset-password", userController.ResetPassword)
 	}
->>>>>>> 3e802a94ec285b5614213e9bb3ea3fe693d3ebad
 
   // Authentication routes
   authRoutes := router.Group("/api/auth")
