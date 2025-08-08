@@ -11,5 +11,7 @@ type IUserRepository interface {
 	GetUserByUsername(username string) (*models.User, error)
 	CheckEmailExists(email string) (bool, error)
 	CheckUsernameExists(username string) (bool, error)
+	UpdateUser(user *models.User) error
+	GetUserByResetToken(token string) (*models.User, error)
 
 } 
