@@ -204,3 +204,54 @@ func generateResetToken() (string, error) {
 	}
 	return hex.EncodeToString(bytes), nil
 }
+
+// promotes a user to admin 
+func (uc *UserUseCase) PromoteUser(adminID, targetUserID string) error {
+	if adminID == targetUserID {
+		return errors.New("admin cannot promote themselves")
+	}
+	admin, err := uc.userRepo.GetUserByID(adminID)
+	if err != nil {
+		return errors.New("acting admin not found")
+	}
+	if admin.RoleID != "admin" {
+		return errors.New("only admins can promote users")
+	}
+	user, err := uc.userRepo.GetUserByID(targetUserID)
+	if err != nil {
+		return errors.New("target user not found")
+	}
+	if user.RoleID == "admin" {
+		return errors.New("user is already an admin")
+	}
+	return uc.userRepo.UpdateUserRole(targetUserID, "admin")
+}
+
+// demotes an admin to user
+func (uc *UserUseCase) DemoteUser(adminID, targetUserID string) error {
+	if adminID == targetUserID {
+		return errors.New("admin cannot demote themselves")
+	}
+	admin, err := uc.userRepo.GetUserByID(adminID)
+	if err != nil {
+		return errors.New("acting admin not found")
+	}
+	if admin.RoleID != "admin" {
+		return errors.New("only admins can demote users")
+	}
+	user, err := uc.userRepo.GetUserByID(targetUserID)
+	if err != nil {
+		return errors.New("target user not found")
+	}
+	if user.RoleID != "admin" {
+		return errors.New("user is not an admin")
+	}
+	adminCount, err := uc.userRepo.GetAdminCount()
+	if err != nil {
+		return errors.New("failed to count admins")
+	}
+	if adminCount <= 1 {
+		return errors.New("cannot demote the last admin")
+	}
+	return uc.userRepo.UpdateUserRole(targetUserID, "user")
+}
