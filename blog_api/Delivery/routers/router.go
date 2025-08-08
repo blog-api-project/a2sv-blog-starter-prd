@@ -8,6 +8,7 @@ import (
   "github.com/gin-gonic/gin"
 )
 
+
 func SetupRouter(userController *controllers.UserController, tokenController *controllers.TokenController,blogController *controllers.BlogController,jwtService services.IJWTService,
 ) *gin.Engine {
   router := gin.Default()
@@ -34,18 +35,11 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
   blogRoutes.Use(infrastructure.AuthMiddleware(jwtService))
 
   {
-<<<<<<< Updated upstream
-         blogRoutes.POST("/create", blogController.CreateBlog)
-		 blogRoutes.GET("/",blogController.GetBlogs)
-		 blogRoutes.PUT("/:id",blogController.UpdateBlogHandler)
-	     blogRoutes.DELETE("/:id",blogController.DeleteBlogHandler)
-=======
     blogRoutes.POST("/create", blogController.CreateBlog)
     blogRoutes.GET("/", blogController.GetBlogs)
     blogRoutes.PUT("/:id", blogController.UpdateBlogHandler)
     blogRoutes.DELETE("/:id", blogController.DeleteBlogHandler)
->>>>>>> Stashed changes
+
   }
 
-  return router
-}
+ 
