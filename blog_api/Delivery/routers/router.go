@@ -18,6 +18,8 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
     userRoutes.POST("/register", userController.Register)
     userRoutes.POST("/login", userController.Login)
     userRoutes.POST("/logout", userController.Logout)
+    userRoutes.POST("/forgot-password", userController.ForgotPassword)
+    userRoutes.POST("/reset-password", userController.ResetPassword)
   }
 
   // Authentication routes
@@ -32,10 +34,17 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
   blogRoutes.Use(infrastructure.AuthMiddleware(jwtService))
 
   {
+<<<<<<< Updated upstream
          blogRoutes.POST("/create", blogController.CreateBlog)
 		 blogRoutes.GET("/",blogController.GetBlogs)
 		 blogRoutes.PUT("/:id",blogController.UpdateBlogHandler)
 	     blogRoutes.DELETE("/:id",blogController.DeleteBlogHandler)
+=======
+    blogRoutes.POST("/create", blogController.CreateBlog)
+    blogRoutes.GET("/", blogController.GetBlogs)
+    blogRoutes.PUT("/:id", blogController.UpdateBlogHandler)
+    blogRoutes.DELETE("/:id", blogController.DeleteBlogHandler)
+>>>>>>> Stashed changes
   }
 
   return router
