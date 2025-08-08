@@ -20,7 +20,8 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
     userRoutes.POST("/login", userController.Login)
     userRoutes.POST("/logout", userController.Logout)
     userRoutes.POST("/forgot-password", userController.ForgotPassword)
-		userRoutes.POST("/reset-password", userController.ResetPassword)
+    userRoutes.POST("/reset-password", userController.ResetPassword)
+
   }
 
   // Authentication routes
@@ -34,9 +35,20 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
   blogRoutes := router.Group("/api/blogs")
   blogRoutes.Use(infrastructure.AuthMiddleware(jwtService))
 
+
   {
          blogRoutes.POST("/create", blogController.CreateBlog)
   }
 
   return router
+=======
+  {
+    blogRoutes.POST("/create", blogController.CreateBlog)
+    blogRoutes.GET("/", blogController.GetBlogs)
+    blogRoutes.PUT("/:id", blogController.UpdateBlogHandler)
+    blogRoutes.DELETE("/:id", blogController.DeleteBlogHandler)
+
+  }
+  return router
+
 }
