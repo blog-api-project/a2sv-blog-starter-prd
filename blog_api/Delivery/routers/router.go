@@ -33,10 +33,13 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
   //Blog Router
   blogRoutes := router.Group("/api/blogs")
   blogRoutes.Use(infrastructure.AuthMiddleware(jwtService))
-
   {
-         blogRoutes.POST("/create", blogController.CreateBlog)
-  }
+    blogRoutes.POST("/create", blogController.CreateBlog)
+    blogRoutes.GET("/", blogController.GetBlogs)
+    blogRoutes.PUT("/:id", blogController.UpdateBlogHandler)
+    blogRoutes.DELETE("/:id", blogController.DeleteBlogHandler)
 
+  }
   return router
+
 }

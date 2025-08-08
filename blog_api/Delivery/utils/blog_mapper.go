@@ -18,3 +18,16 @@ func ConvertToBlog(dto dtos.BlogDto, authorID string, imageURLs []string) *model
    UpdatedAt: time.Now(),
  }
 }
+
+func ConvertToBlogQuery (dto dtos.BlogQueryDto) *models.BlogQuery{
+	return &models.BlogQuery{
+		Page: dto.Page,
+		PageSize: dto.PageSize,
+		SortBy: dto.SortBy,
+		Title : dto.Title,
+		Author : dto.Author,
+		Tags : dto.Tags,
+
+	}
+}
+
