@@ -109,5 +109,41 @@ func (uc *UserController) Logout(c *gin.Context) {
 	
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
+//handles forgot password requests
+func (uc *UserController) ForgotPassword(c *gin.Context) {
+	var forgotPasswordDTO dtos.ForgotPasswordDTO
+	err := c.ShouldBindJSON(&forgotPasswordDTO)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	
+	err = uc.userUsecase.ForgotPassword(forgotPasswordDTO.Email)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Always return success to prevent email enumeration
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "If the email exists, a password reset link has been sent"})
+}
+
+//handles password reset requests
+func (uc *UserController) ResetPassword(c *gin.Context) {
+	var resetPasswordDTO dtos.ResetPasswordDTO
+	err := c.ShouldBindJSON(&resetPasswordDTO)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	
+	err = uc.userUsecase.ResetPassword(resetPasswordDTO.Token, resetPasswordDTO.NewPassword)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
+}
 
 

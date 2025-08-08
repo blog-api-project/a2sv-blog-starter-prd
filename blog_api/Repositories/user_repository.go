@@ -17,7 +17,6 @@ type mongoUserRepository struct {
 	collection *mongo.Collection
 }
 
-
 func NewMongoUserRepository(collection *mongo.Collection) repositories.IUserRepository {
 	return &mongoUserRepository{collection: collection}
 }
@@ -26,8 +25,12 @@ func NewMongoUserRepository(collection *mongo.Collection) repositories.IUserRepo
 func (r *mongoUserRepository) CreateUser(user *models.User) error {
 	ctx, cancel := database.DefaultTimeout()
 	defer cancel()
+
+	// Generate ObjectID for the user
 	objectID := primitive.NewObjectID()
 	user.ID = objectID.Hex()
+
+	// Convert domain model to BSON document
 	doc := bson.M{
 		"_id":                    objectID,
 		"role_id":                user.RoleID,
@@ -108,7 +111,7 @@ func (r *mongoUserRepository) GetUserByUsername(username string) (*models.User, 
 	return r.documentToUser(userData)
 }
 
-// checks if email already exists
+//checks if email already exists
 func (r *mongoUserRepository) CheckEmailExists(email string) (bool, error) {
 	ctx, cancel := database.DefaultTimeout()
 	defer cancel()
@@ -210,4 +213,52 @@ func (r *mongoUserRepository) documentToUser(userData bson.M) (*models.User, err
 	return user, nil
 }
 
+//updates an existing user in the database
+func (r *mongoUserRepository) UpdateUser(user *models.User) error {
+	ctx, cancel := database.DefaultTimeout()
+	defer cancel()
 
+	objectID, err := primitive.ObjectIDFromHex(user.ID)
+	if err != nil {
+		return errors.New("invalid user ID")
+	}
+
+	// Convert domain model to BSON document
+	doc := bson.M{
+		"role_id":                user.RoleID,
+		"oauth_id":               user.OAuthID,
+		"username":               user.Username,
+		"first_name":             user.FirstName,
+		"last_name":              user.LastName,
+		"email":                  user.Email,
+		"password":               user.Password,
+		"bio":                    user.Bio,
+		"profile_picture":        user.ProfilePicture,
+		"contact_info":           user.ContactInfo,
+		"is_active":              user.IsActive,
+		"email_verified":         user.EmailVerified,
+		"reset_password_token":   user.ResetPasswordToken,
+		"reset_password_expires": user.ResetPasswordExpires,
+		"updated_at":             user.UpdatedAt,
+	}
+
+	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, bson.M{"$set": doc})
+	return err
+}
+
+//retrieves a user by reset token
+func (r *mongoUserRepository) GetUserByResetToken(token string) (*models.User, error) {
+	ctx, cancel := database.DefaultTimeout()
+	defer cancel()
+
+	var userData bson.M
+	err := r.collection.FindOne(ctx, bson.M{"reset_password_token": token}).Decode(&userData)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("invalid or expired reset token")
+		}
+		return nil, err
+	}
+
+	return r.documentToUser(userData)
+} 
