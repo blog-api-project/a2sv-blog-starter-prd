@@ -8,6 +8,7 @@ import (
   "github.com/gin-gonic/gin"
 )
 
+
 func SetupRouter(userController *controllers.UserController, tokenController *controllers.TokenController,blogController *controllers.BlogController,jwtService services.IJWTService,
 ) *gin.Engine {
   router := gin.Default()
@@ -18,6 +19,8 @@ func SetupRouter(userController *controllers.UserController, tokenController *co
     userRoutes.POST("/register", userController.Register)
     userRoutes.POST("/login", userController.Login)
     userRoutes.POST("/logout", userController.Logout)
+    userRoutes.POST("/forgot-password", userController.ForgotPassword)
+		userRoutes.POST("/reset-password", userController.ResetPassword)
   }
 
   // Authentication routes

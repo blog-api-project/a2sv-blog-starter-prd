@@ -38,3 +38,17 @@ type ValidateTokenDTO struct {
 type LogoutDTO struct {
 	AccessToken string `json:"access_token"`
 } 
+type ForgotPasswordDTO struct {
+	Email string `json:"email"`
+}
+type ResetPasswordDTO struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+type ForgotPasswordResponseDTO struct {
+	Message string `json:"message"`
+}
+type ResetPasswordResponseDTO struct {
+	Message string `json:"message"`
+} 
