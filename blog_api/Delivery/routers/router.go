@@ -1,45 +1,60 @@
 package routers
 
 import (
-  "blog_api/Delivery/controllers"
-  "blog_api/Domain/contracts/services"
-  infrastructure "blog_api/Infrastructure"
+	"blog_api/Delivery/controllers"
+	"blog_api/Domain/contracts/services"
+	"blog_api/Domain/contracts/usecases"
+	infrastructure "blog_api/Infrastructure"
 
-  "github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 )
 
-
-func SetupRouter(userController *controllers.UserController, tokenController *controllers.TokenController,blogController *controllers.BlogController,jwtService services.IJWTService,
+func SetupRouter(
+	userController *controllers.UserController,
+	tokenController *controllers.TokenController,
+	blogController *controllers.BlogController,
+	adminUseCase usecases.IAdminUseCase,
+	jwtService services.IJWTService,
 ) *gin.Engine {
-  router := gin.Default()
+	router := gin.Default()
 
-  // User routes
-  userRoutes := router.Group("/api/users")
-  {
-    userRoutes.POST("/register", userController.Register)
-    userRoutes.POST("/login", userController.Login)
-    userRoutes.POST("/logout", userController.Logout)
-    userRoutes.POST("/forgot-password", userController.ForgotPassword)
-    userRoutes.POST("/reset-password", userController.ResetPassword)
-  }
+	// User routes
+	userRoutes := router.Group("/api/users")
+	{
+		userRoutes.POST("/register", userController.Register)
+		userRoutes.POST("/login", userController.Login)
+		userRoutes.POST("/logout", userController.Logout)
+		userRoutes.POST("/forgot-password", userController.ForgotPassword)
+		userRoutes.POST("/reset-password", userController.ResetPassword)
+		userRoutes.Use(infrastructure.AuthMiddleware(jwtService))
+        userRoutes.PUT("/profile", userController.UpdateProfile)
+	}
 
-  // Authentication routes
-  authRoutes := router.Group("/api/auth")
-  {
-    authRoutes.POST("/refresh", tokenController.RefreshToken)
-    authRoutes.POST("/validate", tokenController.ValidateToken)
-  }
+	// Authentication routes
+	authRoutes := router.Group("/api/auth")
+	{
+		authRoutes.POST("/refresh", tokenController.RefreshToken)
+		authRoutes.POST("/validate", tokenController.ValidateToken)
+	}
 
-  //Blog Router
-  blogRoutes := router.Group("/api/blogs")
-  blogRoutes.Use(infrastructure.AuthMiddleware(jwtService))
-  {
-    blogRoutes.POST("/create", blogController.CreateBlog)
-    blogRoutes.GET("/", blogController.GetBlogs)
-    blogRoutes.PUT("/:id", blogController.UpdateBlogHandler)
-    blogRoutes.DELETE("/:id", blogController.DeleteBlogHandler)
+	// Admin routes (requires auth + RBAC admin)
+	adminController := controllers.NewAdminController(adminUseCase)
+	adminRoutes := router.Group("/api/admin")
+	adminRoutes.Use(infrastructure.AuthMiddleware(jwtService), infrastructure.RBACMiddleware("admin"))
+	{
+		adminRoutes.POST("/users/:userID/promote", adminController.PromoteUser)
+		adminRoutes.POST("/users/:userID/demote", adminController.DemoteUser)
+	}
 
-  }
-  return router
+	// Blog routes (requires auth)
+	blogRoutes := router.Group("/api/blogs")
+	blogRoutes.Use(infrastructure.AuthMiddleware(jwtService))
+	{
+		blogRoutes.POST("/create", blogController.CreateBlog)
+		blogRoutes.GET("/", blogController.GetBlogs)
+		blogRoutes.PUT("/:id", blogController.UpdateBlogHandler)
+		blogRoutes.DELETE("/:id", blogController.DeleteBlogHandler)
+	}
 
+	return router
 }
