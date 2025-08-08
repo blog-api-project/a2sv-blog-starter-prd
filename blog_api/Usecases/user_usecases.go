@@ -5,6 +5,8 @@ import (
 	services "blog_api/Domain/contracts/services"
 	usecases "blog_api/Domain/contracts/usecases"
 	"blog_api/Domain/models"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"time"
 )
@@ -14,6 +16,7 @@ type UserUseCase struct {
 	passwordSvc   services.IPasswordService
 	jwtSvc        services.IJWTService
 	validationSvc services.IValidationService
+	emailSvc     services.IEmailService
 	tokenUseCase  usecases.ITokenUseCase
 }
 
@@ -22,6 +25,7 @@ func NewUserUseCase(
 	passwordSvc services.IPasswordService,
 	jwtSvc services.IJWTService,
 	validationSvc services.IValidationService,
+	emailSvc services.IEmailService,
 	tokenUseCase usecases.ITokenUseCase,
 ) *UserUseCase {
 	return &UserUseCase{
@@ -29,6 +33,7 @@ func NewUserUseCase(
 		passwordSvc:   passwordSvc,
 		jwtSvc:        jwtSvc,
 		validationSvc: validationSvc,
+		emailSvc:      emailSvc,
 		tokenUseCase:  tokenUseCase,
 	}
 }
@@ -102,4 +107,100 @@ func (uc *UserUseCase) LoginUser(emailOrUsername, password string) (*models.User
 // handles user logout business logic
 func (uc *UserUseCase) LogoutUser(userID string) error {
 	return uc.tokenUseCase.RevokeAllUserTokens(userID)
+}
+//initiates the password reset process
+func (uc *UserUseCase) ForgotPassword(email string) error {
+	if err := uc.validationSvc.ValidateEmail(email); err != nil {
+		return err
+	}
+
+	// Check if user exists
+	user, err := uc.userRepo.GetUserByEmail(email)
+	if err != nil {
+		// Don't reveal if email exists or not for security
+		return nil
+	}
+
+	if !user.IsActive {
+		return errors.New("account is deactivated")
+	}
+
+	resetToken, err := generateResetToken()
+	if err != nil {
+		return err
+	}
+
+	// Set reset token and expiry
+	user.ResetPasswordToken = resetToken
+	expiresAt := time.Now().Add(1 * time.Hour)
+	user.ResetPasswordExpires = &expiresAt
+	user.UpdatedAt = time.Now()
+
+	if err := uc.userRepo.UpdateUser(user); err != nil {
+		return err
+	}
+
+	return uc.emailSvc.SendPasswordResetEmail(user.Email, resetToken)
+}
+
+// resets the user's password using the reset token
+ func (uc *UserUseCase) ResetPassword(token, newPassword string) error {
+  // Validate new password strength
+  if err := uc.validationSvc.ValidatePassword(newPassword); err != nil {
+    return err
+  }
+
+  // Get user by reset token
+  user, err := uc.userRepo.GetUserByResetToken(token)
+  if err != nil {
+    return err
+  }
+
+  // Check if reset token is expired
+  if user.ResetPasswordExpires == nil || time.Now().After(*user.ResetPasswordExpires) {
+    return errors.New("reset token has expired")
+  }
+
+  // Hash new password
+  hashedPassword, err := uc.passwordSvc.HashPassword(newPassword)
+  if err != nil {
+    return err
+  }
+
+  // Update user password and clear reset token
+  user.Password = hashedPassword
+  user.ResetPasswordToken = ""
+  user.ResetPasswordExpires = nil
+  user.UpdatedAt = time.Now()
+
+  // Update user in database
+  if err := uc.userRepo.UpdateUser(user); err != nil {
+    return err
+  }
+
+  // Verify the password was updated correctly by retrieving the user
+  updatedUser, err := uc.userRepo.GetUserByEmail(user.Email)
+  if err != nil {
+    return errors.New("failed to verify password update")
+  }
+
+  // Verify the password hash matches
+  if !uc.passwordSvc.CheckPasswordHash(newPassword, updatedUser.Password) {
+    return errors.New("password update verification failed")
+  }
+
+  if err := uc.tokenUseCase.RevokeAllUserTokens(user.ID); err != nil {
+    return err
+  }
+
+  return uc.emailSvc.SendPasswordChangedEmail(user.Email)
+}
+
+//generates a secure random token for password reset
+func generateResetToken() (string, error) {
+	bytes := make([]byte, 32) 
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
