@@ -18,6 +18,7 @@ type UserUseCase struct {
 	validationSvc services.IValidationService
 	emailSvc     services.IEmailService
 	tokenUseCase  usecases.ITokenUseCase
+	roleRepo      repositories.IRoleRepository
 }
 
 func NewUserUseCase(
@@ -27,6 +28,7 @@ func NewUserUseCase(
 	validationSvc services.IValidationService,
 	emailSvc services.IEmailService,
 	tokenUseCase usecases.ITokenUseCase,
+	roleRepo repositories.IRoleRepository,
 ) *UserUseCase {
 	return &UserUseCase{
 		userRepo:      userRepo,
@@ -35,6 +37,7 @@ func NewUserUseCase(
 		validationSvc: validationSvc,
 		emailSvc:      emailSvc,
 		tokenUseCase:  tokenUseCase,
+		roleRepo:      roleRepo,
 	}
 }
 
@@ -74,6 +77,14 @@ func (uc *UserUseCase) RegisterUser(user *models.User) error {
 	// Set default values
 	user.IsActive = true
 	user.EmailVerified = false
+	if user.RoleID == "" && uc.roleRepo != nil {
+        if roleID, err := uc.roleRepo.GetRoleIDByName("user"); err == nil && roleID != "" {
+            user.RoleID = roleID
+        } else {
+            // Fallback to literal "user" if role repo not seeded
+            user.RoleID = "user"
+        }
+    }
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
@@ -254,4 +265,37 @@ func (uc *UserUseCase) DemoteUser(adminID, targetUserID string) error {
 		return errors.New("cannot demote the last admin")
 	}
 	return uc.userRepo.UpdateUserRole(targetUserID, "user")
+}
+func (uc *UserUseCase) UpdateUserProfile(userID string, update *models.UserProfileUpdate) (*models.User, error) {
+	// Validate user exists
+	user, err := uc.userRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	// Prepare update fields
+	updateFields := make(map[string]interface{})
+	if update.FirstName != "" {
+		updateFields["first_name"] = update.FirstName
+	}
+	if update.LastName != "" {
+		updateFields["last_name"] = update.LastName
+	}
+	if update.Bio != "" {
+		updateFields["bio"] = update.Bio
+	}
+	if update.ProfilePicture != "" {
+		updateFields["profile_picture"] = update.ProfilePicture
+	}
+	if update.ContactInfo != "" {
+		updateFields["contact_info"] = update.ContactInfo
+	}
+	if len(updateFields) == 0 {
+		return user, nil // nothing to update
+	}
+	updateFields["updated_at"] = time.Now()
+	if err := uc.userRepo.UpdateUserProfile(userID, updateFields); err != nil {
+		return nil, err
+	}
+	// Return updated user
+	return uc.userRepo.GetUserByID(userID)
 }
