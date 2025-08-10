@@ -145,5 +145,39 @@ func (uc *UserController) ResetPassword(c *gin.Context) {
 	
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
+func (uc *UserController) UpdateProfile(c *gin.Context) {
+	userID := c.GetString("user_id")
+	var updateDTO dtos.ProfileUpdateDTO
+	if err := c.ShouldBindJSON(&updateDTO); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		return
+	}
+	update := models.UserProfileUpdate{
+		FirstName:      updateDTO.FirstName,
+		LastName:       updateDTO.LastName,
+		Bio:            updateDTO.Bio,
+		ProfilePicture: updateDTO.ProfilePicture,
+		ContactInfo:    updateDTO.ContactInfo,
+	}
+	updatedUser, err := uc.userUsecase.UpdateUserProfile(userID, &update)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	resp := dtos.ProfileResponseDTO{
+		ID:             updatedUser.ID,
+		Username:       updatedUser.Username,
+		FirstName:      updatedUser.FirstName,
+		LastName:       updatedUser.LastName,
+		Email:          updatedUser.Email,
+		Bio:            updatedUser.Bio,
+		ProfilePicture: updatedUser.ProfilePicture,
+		ContactInfo:    updatedUser.ContactInfo,
+		CreatedAt:      updatedUser.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:      updatedUser.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 
 
