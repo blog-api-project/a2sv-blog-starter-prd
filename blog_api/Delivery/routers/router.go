@@ -2,19 +2,19 @@ package routers
 
 import (
 	"blog_api/Delivery/controllers"
-	"blog_api/Domain/contracts/services"
-	"blog_api/Domain/contracts/usecases"
+	contracts_services "blog_api/Domain/contracts/services"
 	infrastructure "blog_api/Infrastructure"
 
 	"github.com/gin-gonic/gin"
 )
 
+// SetupRouter sets up the application routes
 func SetupRouter(
 	userController *controllers.UserController,
 	tokenController *controllers.TokenController,
+	adminController *controllers.AdminController,
 	blogController *controllers.BlogController,
-	adminUseCase usecases.IAdminUseCase,
-	jwtService services.IJWTService,
+	jwtService contracts_services.IJWTService,
 ) *gin.Engine {
 	router := gin.Default()
 
@@ -26,6 +26,10 @@ func SetupRouter(
 		userRoutes.POST("/logout", userController.Logout)
 		userRoutes.POST("/forgot-password", userController.ForgotPassword)
 		userRoutes.POST("/reset-password", userController.ResetPassword)
+
+		// Auth required
+		userRoutes.Use(infrastructure.AuthMiddleware(jwtService))
+		userRoutes.PUT("/profile", userController.UpdateProfile)
 	}
 
 	// Authentication routes
@@ -35,8 +39,8 @@ func SetupRouter(
 		authRoutes.POST("/validate", tokenController.ValidateToken)
 	}
 
-	// Admin routes (requires auth + RBAC admin)
-	adminController := controllers.NewAdminController(adminUseCase)
+	
+	// Admin routes
 	adminRoutes := router.Group("/api/admin")
 	adminRoutes.Use(infrastructure.AuthMiddleware(jwtService), infrastructure.RBACMiddleware("admin"))
 	{
@@ -44,7 +48,7 @@ func SetupRouter(
 		adminRoutes.POST("/users/:userID/demote", adminController.DemoteUser)
 	}
 
-	// Blog routes (requires auth)
+	// Blog routes
 	blogRoutes := router.Group("/api/blogs")
 	blogRoutes.Use(infrastructure.AuthMiddleware(jwtService))
 	{
