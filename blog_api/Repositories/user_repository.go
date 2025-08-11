@@ -4,7 +4,7 @@ import (
 	repositories "blog_api/Domain/contracts/repositories"
 	"blog_api/Domain/models"
 	"blog_api/Repositories/database"
-
+	"context"
 	"errors"
 	"time"
 
@@ -16,7 +16,6 @@ import (
 type mongoUserRepository struct {
 	collection *mongo.Collection
 }
-
 
 func NewMongoUserRepository(collection *mongo.Collection) repositories.IUserRepository {
 	return &mongoUserRepository{collection: collection}
@@ -30,7 +29,6 @@ func (r *mongoUserRepository) CreateUser(user *models.User) error {
 	objectID := primitive.NewObjectID()
 	user.ID = objectID.Hex()
 
-	// Convert domain model to BSON document
 	doc := bson.M{
 		"_id":                    objectID,
 		"role_id":                user.RoleID,
@@ -66,13 +64,13 @@ func (r *mongoUserRepository) GetUserByID(userID string) (*models.User, error) {
 	}
 
 	var userData bson.M
-    err = r.collection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&userData)
-    if err != nil {
-        if err == mongo.ErrNoDocuments {
-            return nil,  errors.New("user not found")
-        }
-        return nil, err
-    }
+	err = r.collection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&userData)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
 
 	return r.documentToUser(userData)
 }
@@ -83,13 +81,13 @@ func (r *mongoUserRepository) GetUserByEmail(email string) (*models.User, error)
 	defer cancel()
 
 	var userData bson.M
-    err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&userData)
-    if err != nil {
-        if err == mongo.ErrNoDocuments {
-            return nil, errors.New("user not found")
-        }
-        return nil, err
-    }
+	err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&userData)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
 
 	return r.documentToUser(userData)
 }
@@ -100,13 +98,13 @@ func (r *mongoUserRepository) GetUserByUsername(username string) (*models.User, 
 	defer cancel()
 
 	var userData bson.M
-    err := r.collection.FindOne(ctx, bson.M{"username": username}).Decode(&userData)
-    if err != nil {
-        if err == mongo.ErrNoDocuments {
-            return nil, errors.New("user not found")
-        }
-        return nil, err
-    }
+	err := r.collection.FindOne(ctx, bson.M{"username": username}).Decode(&userData)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
 
 	return r.documentToUser(userData)
 }
@@ -145,12 +143,12 @@ func (r *mongoUserRepository) documentToUser(userData bson.M) (*models.User, err
 		user.ID = id.Hex()
 	}
 
-    if roleID, ok := userData["role_id"].(string); ok {
-        user.RoleID = roleID
-    }
-    if roleOID, ok := userData["role_id"].(primitive.ObjectID); ok {
-        user.RoleID = roleOID.Hex()
-    }
+	if roleID, ok := userData["role_id"].(string); ok {
+		user.RoleID = roleID
+	}
+	if roleOID, ok := userData["role_id"].(primitive.ObjectID); ok {
+		user.RoleID = roleOID.Hex()
+	}
 
 	if oauthID, ok := userData["oauth_id"].(*string); ok {
 		user.OAuthID = oauthID
@@ -226,7 +224,6 @@ func (r *mongoUserRepository) UpdateUser(user *models.User) error {
 		return errors.New("invalid user ID")
 	}
 
-	// Convert domain model to BSON document
 	doc := bson.M{
 		"role_id":                user.RoleID,
 		"oauth_id":               user.OAuthID,
@@ -258,11 +255,11 @@ func (r *mongoUserRepository) UpdateUserRole(userID, roleID string) error {
 		return errors.New("invalid user ID")
 	}
 
-    set := bson.M{"role_id": roleID}
-    if oid, err2 := primitive.ObjectIDFromHex(roleID); err2 == nil {
-        set["role_id"] = oid
-    }
-    _, err = r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, bson.M{"$set": set})
+	set := bson.M{"role_id": roleID}
+	if oid, err2 := primitive.ObjectIDFromHex(roleID); err2 == nil {
+		set["role_id"] = oid
+	}
+	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, bson.M{"$set": set})
 	return err
 }
 
@@ -281,15 +278,25 @@ func (r *mongoUserRepository) GetUserByResetToken(token string) (*models.User, e
 	defer cancel()
 
 	var userData bson.M
-    err := r.collection.FindOne(ctx, bson.M{"reset_password_token": token}).Decode(&userData)
-    if err != nil {
-        if err == mongo.ErrNoDocuments {
-            return nil, errors.New("invalid or expired reset token")
-        }
-        return nil, err
-    }
+	err := r.collection.FindOne(ctx, bson.M{"reset_password_token": token}).Decode(&userData)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("invalid or expired reset token")
+		}
+		return nil, err
+	}
 
 	return r.documentToUser(userData)
 }
 
-
+// updates specific user profile fields
+func (r *mongoUserRepository) UpdateUserProfile(userID string, updateFields map[string]interface{}) error {
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return errors.New("invalid user ID")
+	}
+	filter := bson.M{"_id": objectID}
+	update := bson.M{"$set": updateFields}
+	_, err = r.collection.UpdateOne(context.TODO(), filter, update)
+	return err
+}
