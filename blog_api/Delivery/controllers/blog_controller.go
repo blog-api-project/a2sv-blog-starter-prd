@@ -67,7 +67,7 @@ func (bc *BlogController) CreateBlog(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Image upload failed"})
 		return
 	}
-	userID := c.GetString("userID")
+	userID := c.GetString("user_id")
 	domainBlog := utils.ConvertToBlog(blogDTO, userID, imagePaths)
 
 
@@ -112,7 +112,7 @@ func (bc *BlogController) GetBlogs (c *gin.Context){
 
 func (ct *BlogController) UpdateBlogHandler(c *gin.Context) {
 	blogID := c.Param("id")
-	userID := c.GetString("userID")
+	userID := c.GetString("user_id")
 
 	var updatedBlogDTO dtos.BlogDto
 	if err := c.ShouldBindWith(&updatedBlogDTO, binding.FormMultipart); err != nil {
@@ -136,7 +136,7 @@ func (ct *BlogController) UpdateBlogHandler(c *gin.Context) {
 
 func (bc *BlogController) DeleteBlogHandler(c *gin.Context){
 	blogID := c.Param("id")
-	userID := c.GetString("userID")
+	userID := c.GetString("user_id")
 
 	err := bc.blogUseCase.DeleteBlog(blogID,userID)
 	if err != nil{
@@ -146,4 +146,55 @@ func (bc *BlogController) DeleteBlogHandler(c *gin.Context){
 	}
 	c.JSON(http.StatusOK,gin.H{"Message":"Blog Deleted Successfully"})
 	
+}
+func (bc *BlogController) SearchBlogsHandler(c *gin.Context) {
+    var searchQuery dtos.BlogQueryDto
+    if err := c.ShouldBindQuery(&searchQuery); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error":   "invalid query parameters",
+            "details": err.Error(),
+        })
+        return
+    }
+
+    domainQuery := utils.ConvertToBlogQuery(searchQuery)
+
+    blogs, err := bc.blogUseCase.SearchBlogs(domainQuery)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "count": len(*blogs),
+        "data":  blogs,
+    })
+}
+func (ct *BlogController) LikeBlog(c *gin.Context) {
+    blogID := c.Param("id")
+    userID := c.GetString("user_id")
+
+    err := ct.blogUseCase.LikeBlog(userID, blogID)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Blog liked successfully"})
+}
+
+func (ct *BlogController) DislikeBlog(c *gin.Context){
+	blogID := c.Param("id")
+	userID := c.GetString("user_id")
+
+	err := ct.blogUseCase.DislikeBlog(userID,blogID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest,gin.H{"error":err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK,gin.H{"message":"You dislike the blog"})
+
+
 }

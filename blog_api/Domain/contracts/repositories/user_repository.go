@@ -15,5 +15,7 @@ type IUserRepository interface {
 	GetUserByResetToken(token string) (*models.User, error)
 	UpdateUserRole(userID, newRole string) error
 	GetAdminCount() (int, error)
+	UpdateUserProfile(userID string, updateFields map[string]interface{}) error
+
 
 } 

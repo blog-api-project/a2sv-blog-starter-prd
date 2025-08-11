@@ -51,7 +51,8 @@ func main() {
 	tokenRepo := repositories.NewMongoTokenRepository(db.Collection("access_tokens"), db.Collection("refresh_tokens"))
 	oauthRepo := repositories.NewMongoOAuthRepository(db.Collection("oauth_users"))
 	roleRepo := repositories.NewMongoRoleRepository(db.Collection("roles"))
-	blogRepo := repositories.NewMongoBlogRepository(db.Collection("Blogs"))
+	blogRepo := repositories.NewMongoBlogRepository(db.Collection("Blogs"),db.Collection("Blog_interaction"))
+	commRepo := repositories.NewMongoCommentRepository(db.Collection("Comments"))
 
 	// Initialize services
 	passwordSvc := infrastructure.NewPasswordService()
@@ -122,7 +123,8 @@ func main() {
 	userUseCase := usecases.NewUserUseCase(userRepo, passwordSvc, jwtSvc, validationSvc, emailSvc, tokenUseCase, roleRepo)
 	oauthUseCase := usecases.NewOAuthUseCase(userRepo, oauthRepo, oauthServices, tokenUseCase, roleRepo)
 	adminUseCase := usecases.NewAdminUseCase(userRepo, roleRepo)
-	blogUseCase := usecases.NewBlogUseCase(blogRepo)
+	blogUseCase := usecases.NewBlogUseCase(blogRepo,userRepo)
+	commentUseCase := usecases.NewCommentUseCases(commRepo,blogRepo)
 
 	// Initialize controllers
 	userController := controllers.NewUserController(userUseCase, tokenUseCase, jwtSvc)
@@ -130,9 +132,10 @@ func main() {
 	oauthController := controllers.NewOAuthController(oauthUseCase)
 	adminController := controllers.NewAdminController(adminUseCase)
 	blogController := controllers.NewBlogController(blogUseCase, imageSvc)
+	commentController := controllers.NewCommentController(commentUseCase)
 
 	// Setup router
-	router := routers.SetupRouter(userController, tokenController, oauthController, adminController, blogController, jwtSvc)
+	router := routers.SetupRouter(userController, tokenController, oauthController, adminController, blogController, commentController,jwtSvc)
 
 	// Get port from environment variable or use default
 	port := os.Getenv("PORT")

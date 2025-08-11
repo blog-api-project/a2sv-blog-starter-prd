@@ -14,6 +14,7 @@ func SetupRouter(
 	oauthController *controllers.OAuthController,
 	adminController *controllers.AdminController,
 	blogController *controllers.BlogController,
+	CommentController *controllers.CommentController,
 	jwtService contracts_services.IJWTService,
 ) *gin.Engine {
 	router := gin.Default()
@@ -64,6 +65,20 @@ func SetupRouter(
 		blogRoutes.GET("/", blogController.GetBlogs)
 		blogRoutes.PUT("/:id", blogController.UpdateBlogHandler)
 		blogRoutes.DELETE("/:id", blogController.DeleteBlogHandler)
+		blogRoutes.GET("/search",blogController.SearchBlogsHandler)
+		blogRoutes.POST("/:id/like",blogController.LikeBlog)
+		blogRoutes.POST("/:id/dislike",blogController.DislikeBlog)
+	}
+
+	//comment routes
+	commentRoutes := router.Group("/api/comments")
+	commentRoutes.Use(infrastructure.AuthMiddleware(jwtService))
+	{ 
+		commentRoutes.POST("/create/:id",CommentController.CreateComment)
+		commentRoutes.PUT("/:id",CommentController.UpdateComment)
+		commentRoutes.DELETE("/:id",CommentController.DeleteComment)
+	
+
 	}
 
 	return router
