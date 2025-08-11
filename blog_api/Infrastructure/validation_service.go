@@ -73,4 +73,3 @@ func (v *ValidationServiceImpl) ValidateUsername(username string) error {
 	
 	return nil
 } 
-
