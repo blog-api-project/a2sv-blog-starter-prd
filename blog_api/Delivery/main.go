@@ -3,7 +3,9 @@ package main
 import (
 	"blog_api/Delivery/controllers"
 	"blog_api/Delivery/routers"
+	contracts_services "blog_api/Domain/contracts/services"
 	infrastructure "blog_api/Infrastructure"
+	"blog_api/Infrastructure/provider"
 	repositories "blog_api/Repositories"
 	"blog_api/Repositories/database"
 	usecases "blog_api/Usecases"
@@ -47,6 +49,7 @@ func main() {
 	// Initialize repositories
 	userRepo := repositories.NewMongoUserRepository(db.Collection("users"))
 	tokenRepo := repositories.NewMongoTokenRepository(db.Collection("access_tokens"), db.Collection("refresh_tokens"))
+	oauthRepo := repositories.NewMongoOAuthRepository(db.Collection("oauth_users"))
 	roleRepo := repositories.NewMongoRoleRepository(db.Collection("roles"))
 	blogRepo := repositories.NewMongoBlogRepository(db.Collection("Blogs"))
 
@@ -57,7 +60,7 @@ func main() {
 	emailSvc := infrastructure.NewEmailService()
 	imageSvc := infrastructure.NewImageService(uploadDir)
 
-	// Dev seeding: roles + initial admin account (non-production only)
+	// Dev seeding: roles + initial admin account 
 	if os.Getenv("ENV") != "production" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -78,6 +81,8 @@ func main() {
 			bson.M{"$setOnInsert": bson.M{"role": "admin", "created_at": time.Now(), "updated_at": time.Now()}},
 			options.Update().SetUpsert(true),
 		)
+
+		// Read admin role ObjectID
 		var adminRoleDoc bson.M
 		if err := rolesCol.FindOne(ctx, bson.M{"role": "admin"}).Decode(&adminRoleDoc); err == nil {
 			if adminOID, ok := adminRoleDoc["_id"].(primitive.ObjectID); ok {
@@ -102,22 +107,32 @@ func main() {
 		}
 	}
 
-	
+	// Initialize OAuth services
+	googleOAuthSvc := provider.NewGoogleOAuthService()
+	githubOAuthSvc := provider.NewGitHubOAuthService()
+	facebookOAuthSvc := provider.NewFacebookOAuthService()
+	oauthServices := map[string]contracts_services.IOAuthService{
+		"google":   googleOAuthSvc,
+		"github":   githubOAuthSvc,
+		"facebook": facebookOAuthSvc,
+	}
 
 	// Initialize use cases
 	tokenUseCase := usecases.NewTokenUseCase(tokenRepo, jwtSvc, roleRepo)
 	userUseCase := usecases.NewUserUseCase(userRepo, passwordSvc, jwtSvc, validationSvc, emailSvc, tokenUseCase, roleRepo)
+	oauthUseCase := usecases.NewOAuthUseCase(userRepo, oauthRepo, oauthServices, tokenUseCase, roleRepo)
 	adminUseCase := usecases.NewAdminUseCase(userRepo, roleRepo)
 	blogUseCase := usecases.NewBlogUseCase(blogRepo)
 
 	// Initialize controllers
 	userController := controllers.NewUserController(userUseCase, tokenUseCase, jwtSvc)
 	tokenController := controllers.NewTokenController(tokenUseCase, jwtSvc)
+	oauthController := controllers.NewOAuthController(oauthUseCase)
 	adminController := controllers.NewAdminController(adminUseCase)
 	blogController := controllers.NewBlogController(blogUseCase, imageSvc)
 
 	// Setup router
-	router := routers.SetupRouter(userController, tokenController, adminController, blogController, jwtSvc)
+	router := routers.SetupRouter(userController, tokenController, oauthController, adminController, blogController, jwtSvc)
 
 	// Get port from environment variable or use default
 	port := os.Getenv("PORT")

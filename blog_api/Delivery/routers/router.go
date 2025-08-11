@@ -8,10 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SetupRouter sets up the application routes
 func SetupRouter(
 	userController *controllers.UserController,
 	tokenController *controllers.TokenController,
+	oauthController *controllers.OAuthController,
 	adminController *controllers.AdminController,
 	blogController *controllers.BlogController,
 	jwtService contracts_services.IJWTService,
@@ -39,7 +39,15 @@ func SetupRouter(
 		authRoutes.POST("/validate", tokenController.ValidateToken)
 	}
 
-	
+	// OAuth routes
+	oauthRoutes := router.Group("/api/auth")
+	{
+		oauthRoutes.GET("/:provider/login", oauthController.InitiateOAuthFlow)
+		oauthRoutes.GET("/:provider/callback", oauthController.HandleOAuthCallback)
+		oauthRoutes.POST("/:provider/link", infrastructure.AuthMiddleware(jwtService),
+			infrastructure.RBACMiddleware("user", "admin"), oauthController.LinkOAuthToExistingUser)
+	}
+
 	// Admin routes
 	adminRoutes := router.Group("/api/admin")
 	adminRoutes.Use(infrastructure.AuthMiddleware(jwtService), infrastructure.RBACMiddleware("admin"))

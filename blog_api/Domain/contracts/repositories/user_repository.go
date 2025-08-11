@@ -13,5 +13,7 @@ type IUserRepository interface {
 	CheckUsernameExists(username string) (bool, error)
 	UpdateUser(user *models.User) error
 	GetUserByResetToken(token string) (*models.User, error)
+	UpdateUserRole(userID, newRole string) error
+	GetAdminCount() (int, error)
 
 } 
