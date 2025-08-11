@@ -23,3 +23,11 @@ type User struct {
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 } 
+
+type UserProfileUpdate struct {
+	FirstName      string
+	LastName       string
+	Bio            string
+	ProfilePicture string
+	ContactInfo    string
+}
