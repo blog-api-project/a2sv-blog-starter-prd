@@ -10,11 +10,13 @@ import (
 
 type BlogUseCase struct {
 	BlogRepo repositories.IBlogRepository
+	UserRepo repositories.IUserRepository
 }
 
-func NewBlogUseCase(blogRepo repositories.IBlogRepository) *BlogUseCase {
+func NewBlogUseCase(blogRepo repositories.IBlogRepository,userRepo repositories.IUserRepository) *BlogUseCase {
 	return &BlogUseCase{
-		BlogRepo: blogRepo}
+		BlogRepo: blogRepo,
+	    UserRepo: userRepo,}
 }
 
 func (uc *BlogUseCase) CreateBlog(blog *models.Blog, AuthorID string) error {
@@ -110,4 +112,68 @@ func (uc *BlogUseCase) DeleteBlog(blogID string, authorID string) error {
 	}
 
 	return nil
+}
+
+func (uc *BlogUseCase) SearchBlogs(searchQuery *models.BlogQuery)(*[]models.Blog,error) {
+	var authorID string
+	if searchQuery.Author != "" {
+		user, err := uc.UserRepo.GetUserByUsername(searchQuery.Author)
+		if err != nil {
+			return nil, err
+		}
+		authorID = user.ID
+	
+	}
+
+	blogs, err := uc.BlogRepo.SearchBlogs(searchQuery.Title,authorID)
+	if err != nil {
+		return nil, err
+	}
+	return blogs, nil
+}
+
+func (uc *BlogUseCase) LikeBlog(userID, blogID string) error {
+   
+    liked, err := uc.BlogRepo.HasUserInteraction(userID, blogID, "like")
+    if err != nil {
+        return err
+    }
+    if liked {
+        return errors.New("user has already liked this blog")
+    }
+    err = uc.BlogRepo.AddUserInteraction(userID, blogID, "like")
+    if err != nil {
+        return err
+    }
+
+    err = uc.BlogRepo.IncrementLike(blogID)
+    if err != nil {
+        if rbErr := uc.BlogRepo.RemoveUserInteraction(userID, blogID, "like"); rbErr != nil {
+        }
+        return err
+    }
+    return nil
+}
+
+func (uc *BlogUseCase) DislikeBlog(userID, blogID string) error{
+	dislike,err := uc.BlogRepo.HasUserInteraction(userID,blogID,"dislike")
+	if err != nil{
+		return err
+	}
+	if dislike{
+		return errors.New("user has already disliked this blog")
+
+	}
+	err = uc.BlogRepo.AddUserInteraction(userID,blogID,"dislike")
+	if err != nil{
+		return err
+	}
+	err = uc.BlogRepo.IncrementDislike(blogID)
+	if err != nil {
+        if rbErr := uc.BlogRepo.RemoveUserInteraction(userID, blogID, "like"); rbErr != nil {
+        }
+        return err
+    }
+    return nil
+	
 }

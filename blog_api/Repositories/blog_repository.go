@@ -16,10 +16,13 @@ import (
 
 type MongoBlogRepository struct {
 	blogCollection *mongo.Collection
+	interactionCollection *mongo.Collection
 }
 
-func NewMongoBlogRepository(collection *mongo.Collection) repositories.IBlogRepository {
-	return &MongoBlogRepository{blogCollection: collection}
+func NewMongoBlogRepository(collection *mongo.Collection,interactionCol *mongo.Collection) repositories.IBlogRepository {
+	return &MongoBlogRepository{
+		blogCollection: collection,
+	interactionCollection: interactionCol,}
 
 }
 
@@ -161,4 +164,167 @@ func (bc *MongoBlogRepository) DeleteBlog(BlogID string) error{
 
 	}
 	return nil
+}
+
+func (r *MongoBlogRepository) SearchBlogs(title string, authorID string) (*[]models.Blog, error) {
+    filter := bson.M{}
+
+    if title != "" {
+        filter["title"] = bson.M{"$regex": title, "$options": "i"}
+    }
+
+    if authorID != "" {
+        objID, err := primitive.ObjectIDFromHex(authorID)
+        if err != nil {
+            return nil, err
+        }
+        filter["author_id"] = objID
+    }
+
+    cursor, err := r.blogCollection.Find(context.Background(), filter)
+    if err != nil {
+        return nil, err
+    }
+
+    var blogs []models.Blog
+    if err := cursor.All(context.Background(), &blogs); err != nil {
+        return nil, err
+    }
+
+    return &blogs, nil
+}
+
+
+func (bc *MongoBlogRepository) HasUserInteraction(userID,blogID,action string)(bool,error){
+	userObjID, err := primitive.ObjectIDFromHex(userID)
+    if err != nil {
+        return false, err
+    }
+
+    blogObjID, err := primitive.ObjectIDFromHex(blogID)
+    if err != nil {
+        return false, err
+    }
+	filter := bson.M{
+		"userid":userObjID,
+		"blogid":blogObjID,
+		"action":action, 
+
+	}
+	count,err := bc.interactionCollection.CountDocuments(context.TODO(),filter)
+	if err != nil{
+		return false,err
+	}
+	return count > 0, nil
+}
+
+func (bc *MongoBlogRepository) AddUserInteraction(userID, blogID, action string) error {
+    userObjID, err := primitive.ObjectIDFromHex(userID)
+    if err != nil {
+        return err
+    }
+
+    blogObjID, err := primitive.ObjectIDFromHex(blogID)
+    if err != nil {
+        return err
+    }
+
+    interact := bson.M{
+        "userid":    userObjID,
+        "blogid":    blogObjID,
+        "action":    action,
+        "createdat": time.Now(),
+    }
+    _, err = bc.interactionCollection.InsertOne(context.TODO(), interact)
+    return err
+}
+
+func (bc *MongoBlogRepository) RemoveUserInteraction(userID, blogID, action string) error {
+    userObjID, err := primitive.ObjectIDFromHex(userID)
+    if err != nil {
+        return err
+    }
+
+    blogObjID, err := primitive.ObjectIDFromHex(blogID)
+    if err != nil {
+        return err
+    }
+
+    filter := bson.M{
+        "userid": userObjID,
+        "blogid": blogObjID,
+        "action": action,
+    }
+    res, err := bc.interactionCollection.DeleteOne(context.TODO(), filter)
+    if err != nil {
+        return err
+    }
+    if res.DeletedCount == 0 {
+        return errors.New("no interaction found")
+    }
+    return nil
+}
+
+
+func (m *MongoBlogRepository) IncrementLike(blogID string) error {
+	objID, err := primitive.ObjectIDFromHex(blogID)
+	if err != nil {
+		return err
+	}
+	filter := bson.M{"_id": objID}
+	update := bson.M{"$inc": bson.M{"likecount": 1}}
+	_, err = m.blogCollection.UpdateOne(context.TODO(), filter, update)
+	return err
+}
+
+func (m *MongoBlogRepository) DecrementDislike(blogID string) error {
+	objID, err := primitive.ObjectIDFromHex(blogID)
+	if err != nil {
+		return err
+	}
+	filter := bson.M{"_id": objID, "dislikecount": bson.M{"$gt": 0}}
+	update := bson.M{"$inc": bson.M{"dislikecount": -1}}
+	res, err := m.blogCollection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		return err
+	}
+	if res.ModifiedCount == 0 {
+		return errors.New("dislike count already zero or blog not found")
+	}
+	return nil
+}
+
+func (bc *MongoBlogRepository) IncrementDislike(blogID string)error{
+	objID,err := primitive.ObjectIDFromHex(blogID)
+	if err != nil{
+		return err
+	}
+	filter := bson.M{"_id":objID}
+	update := bson.M{"$inc":bson.M{"dislikecount":1}}
+	_,err = bc.blogCollection.UpdateOne(context.TODO(),filter,update)
+	return nil
+}
+
+func (bc *MongoBlogRepository) IncrementComment(blogID string) error{
+	objID, err := primitive.ObjectIDFromHex(blogID)
+	if err != nil{
+		return nil
+	}
+	filter := bson.M{"_id":objID}
+	update := bson.M{"$inc":bson.M{"commentcount":1}}
+	_,err = bc.blogCollection.UpdateOne(context.TODO(),filter,update)
+	return nil
+}
+
+func (bc *MongoBlogRepository) DecrementComment(blogID string) error {
+    objID, err := primitive.ObjectIDFromHex(blogID)
+    if err != nil {
+        return err
+    }
+
+    filter := bson.M{"_id": objID}
+    update := bson.M{"$inc": bson.M{"commentcount": -1}}
+
+    _, err = bc.blogCollection.UpdateOne(context.TODO(), filter, update)
+    return err
 }

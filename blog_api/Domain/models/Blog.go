@@ -41,3 +41,13 @@ type PaginationMeta struct {
 	TotalPosts   int
 	PostsPerPage int
 }
+type UserBlogInteraction struct{
+	ID          string
+	UserID      string
+	BlogID      string
+	Action      string
+	CreatedAt time.Time
+
+}
+
+
