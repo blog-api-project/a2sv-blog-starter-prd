@@ -80,13 +80,15 @@ func (j *JWTServiceImpl) ValidateJWT(tokenString string) (map[string]interface{}
 }
 
 // generates a new refresh token
-func (j *JWTServiceImpl) GenerateRefreshToken(userID string) (string, error) {
+func (j *JWTServiceImpl) GenerateRefreshToken(userID string, role string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
+        "role":    role,
 		"type":    "refresh",
 		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 days expiration
 		"iat":     time.Now().Unix(),
 	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	tokenString, err := token.SignedString(j.secretKey)
@@ -96,7 +98,6 @@ func (j *JWTServiceImpl) GenerateRefreshToken(userID string) (string, error) {
 
 	return tokenString, nil
 }
-
 // validates a refresh token
 func (j *JWTServiceImpl) ValidateRefreshToken(tokenString string) (map[string]interface{}, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
