@@ -67,7 +67,7 @@ func (bc *BlogController) CreateBlog(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Image upload failed"})
 		return
 	}
-	userID := c.GetString("userID")
+	userID := c.GetString("user_id")
 	domainBlog := utils.ConvertToBlog(blogDTO, userID, imagePaths)
 
 
@@ -112,7 +112,7 @@ func (bc *BlogController) GetBlogs (c *gin.Context){
 
 func (ct *BlogController) UpdateBlogHandler(c *gin.Context) {
 	blogID := c.Param("id")
-	userID := c.GetString("userID")
+	userID := c.GetString("user_id")
 
 	var updatedBlogDTO dtos.BlogDto
 	if err := c.ShouldBindWith(&updatedBlogDTO, binding.FormMultipart); err != nil {
@@ -136,7 +136,7 @@ func (ct *BlogController) UpdateBlogHandler(c *gin.Context) {
 
 func (bc *BlogController) DeleteBlogHandler(c *gin.Context){
 	blogID := c.Param("id")
-	userID := c.GetString("userID")
+	userID := c.GetString("user_id")
 
 	err := bc.blogUseCase.DeleteBlog(blogID,userID)
 	if err != nil{
