@@ -11,138 +11,540 @@ Welcome to the Blog Platform API. This guide explains how to use each endpoint w
 **Base URL**: `http://localhost:8080` (or your configured server URL)  
 **Base path**: `/api`
 
-All protected endpoints require JWT authentication.
+### Using Postman
 
-- Header: `Authorization: Bearer <token>`
-
-## Authentication (JWT)
-
-Our API uses JWT (JSON Web Tokens) for authentication. Include your access token in the `Authorization` header for protected endpoints.
-
-**Format**: `Authorization: Bearer <your_access_token>`
-
-**Token types**
-
-- **Access Token**: Valid for ~15 minutes (used for API requests)
-- **Refresh Token**: Valid for ~7 days (used to obtain new access tokens)
-
----
+- Create a Postman collection and add each request from this document
+- Create a Postman Environment with variables:
+  - `baseUrl`: `http://localhost:8080`
+  - `accessToken`: set after login
+  - `refreshToken`: set after login
+- For protected routes, set the Authorization header to: `Bearer {{accessToken}}`
 
 ## Table of Contents
 
-1. User Management (register/login/logout/etc.)
-2. Token Management
-3. OAuth Integration
-4. Admin Operations
-5. Blogs
-6. Comments
-7. Models (reference)
-8. Error Handling
-9. Security Best Practices
-10. Testing
+1. Authentication
+2. User Management (register/login/logout/etc.)
+3. Token Management
+4. OAuth Integration
+5. Admin Operations
+6. Blogs
+7. Comments
+8. Models (reference)
+9. Error Handling
+10. Security Best Practices
+11. Testing
 
-## User Management (summary)
+---
 
-### Register
+## Authentication
 
-- `POST /api/users/register`
-- Body: `username`, `first_name`, `last_name`, `email`, `password`
-- 200 Response:
+Our API uses JWT (JSON Web Tokens) for authentication. You'll need to include your access token in the Authorization header for protected endpoints.
+
+**Format**: `Authorization: Bearer <your_access_token>`
+
+### Token Types
+
+- **Access Token**: Valid for 15 minutes, used for API requests
+- **Refresh Token**: Valid for 7 days, used to get new access tokens
+
+---
+
+## User Management
+
+### 1. User Registration
+
+Create a new user account on the platform.
+
+**Endpoint**: `POST /api/users/register`
+
+**Request Body**:
 
 ```json
-{ "message": "User registered successfully" }
+{
+  "username": "zufan_Gebrehiwot",
+  "first_name": "Zufan",
+  "last_name": "Gebrehiwot",
+  "email": "zufan@example.com",
+  "password": "securePassword123!"
+}
 ```
 
-### Login
+**Response** (200 OK):
 
-- `POST /api/users/login`
-- Body: `email_or_username`, `password`
-- 200 Response:
+```json
+{
+  "message": "User registered successfully"
+}
+```
+
+**Validation Rules**:
+
+- Username: 3-50 characters, alphanumeric and underscores only
+- Email: Valid email format, must be unique
+- Password: Minimum 8 characters, must contain uppercase, lowercase, number, and special character
+- First/Last name: 1-50 characters
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid input data or validation errors
+- `409 Conflict`: Username or email already exists
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/users/register`
+- Body: raw JSON (use the example above)
+
+---
+
+### 2. User Login
+
+Authenticate a user and receive access tokens.
+
+**Endpoint**: `POST /api/users/login`
+
+**Request Body**:
+
+```json
+{
+  "email_or_username": "zufan@example.com",
+  "password": "securePassword123!"
+}
+```
+
+**Response** (200 OK):
 
 ```json
 {
   "message": "Login successful",
-  "access_token": "<token>",
-  "refresh_token": "<token>",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "token_type": "Bearer",
   "expires_in": 900
 }
 ```
 
-### Logout
+**Notes**:
 
-- `POST /api/users/logout`
-- Body: `{ "access_token": "<token>" }`
-- 200 Response:
+- You can login with either email or username
+- Access token expires in 15 minutes
+- Store the refresh token securely for token renewal
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid input format
+- `401 Unauthorized`: Invalid credentials
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/users/login`
+- Body: raw JSON (use the example above)
+
+---
+
+### 3. User Logout
+
+Logout a user and invalidate their tokens.
+
+**Endpoint**: `POST /api/users/logout`
+
+**Request Body**:
 
 ```json
-{ "message": "Logout successful" }
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
 ```
 
-### Forgot Password / Reset Password
+**Response** (200 OK):
 
-- `POST /api/users/forgot-password` — request password reset (returns success regardless to avoid enumeration)
-- `POST /api/users/reset-password` — provide reset token + new password
+```json
+{
+  "message": "Logout successful"
+}
+```
 
-### Update Profile
+**Notes**:
 
-- `PUT /api/users/profile` (auth required)
-- Fields: `first_name`, `last_name`, `bio`, `profile_picture`, `contact_info`
-- 200: returns updated user object
+- This invalidates both access and refresh tokens
+- User will need to login again to get new tokens
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid input format
+- `401 Unauthorized`: Invalid or expired token
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/users/logout`
+- Body: raw JSON `{ "access_token": "{{accessToken}}" }`
+
+---
+
+### 4. Forgot Password
+
+Request a password reset link via email.
+
+**Endpoint**: `POST /api/users/forgot-password`
+
+**Request Body**:
+
+```json
+{
+  "email": "zufan@example.com"
+}
+```
+
+**Response** (200 OK):
+
+```json
+{
+  "message": "If the email exists, a password reset link has been sent"
+}
+```
+
+**Notes**:
+
+- Always returns success to prevent email enumeration
+- If email exists, a reset link will be sent
+- Reset tokens expire after 1 hour
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid email format
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/users/forgot-password`
+- Body: raw JSON (use the example above)
+
+---
+
+### 5. Reset Password
+
+Reset password using the token from forgot password email.
+
+**Endpoint**: `POST /api/users/reset-password`
+
+**Request Body**:
+
+```json
+{
+  "token": "reset_token_from_email",
+  "new_password": "newSecurePassword123!"
+}
+```
+
+**Response** (200 OK):
+
+```json
+{
+  "message": "Password reset successfully"
+}
+```
+
+**Validation Rules**:
+
+- New password: Minimum 8 characters, must contain uppercase, lowercase, number, and special character
+- Token must be valid and not expired
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid token or password validation failed
+- `401 Unauthorized`: Expired or invalid reset token
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/users/reset-password`
+- Body: raw JSON (use the example above)
+
+---
+
+### 6. Update User Profile
+
+Update user profile information (requires authentication).
+
+**Endpoint**: `PUT /api/users/profile`
+
+**Headers**: `Authorization: Bearer <access_token>`
+
+**Request Body**:
+
+```json
+{
+  "first_name": "Zufan",
+  "last_name": "Smith",
+  "bio": "Software developer passionate about clean code",
+  "profile_picture": "https://example.com/avatar.jpg",
+  "contact_info": "zufan.smith@example.com"
+}
+```
+
+**Response** (200 OK):
+
+```json
+{
+  "id": "user_id_here",
+  "username": "zufan_gebrehiwot",
+  "first_name": "Zufan",
+  "last_name": "Smith",
+  "email": "zufan@example.com",
+  "bio": "Software developer passionate about clean code",
+  "profile_picture": "https://example.com/avatar.jpg",
+  "contact_info": "zufan.smith@example.com",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T14:45:00Z"
+}
+```
+
+**Notes**:
+
+- All fields are optional
+- Email and password cannot be updated through this endpoint
+- Profile picture must be a valid URL
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid input data
+- `401 Unauthorized`: Invalid or missing token
+
+Postman:
+
+- Method: PUT
+- URL: `{{baseUrl}}/api/users/profile`
+- Headers: `Authorization: Bearer {{accessToken}}`
+- Body: raw JSON (use the example above)
 
 ---
 
 ## Token Management
 
-### Validate Access Token
+### 1. Validate Access Token
 
-- `POST /api/auth/validate`
-- Body: `{ "access_token": "<token>" }`
-- Response: token validity and claims
+Check if an access token is valid and get its claims.
 
-### Refresh Access Token
+**Endpoint**: `POST /api/auth/validate`
 
-- `POST /api/auth/refresh`
-- Body: `{ "refresh_token": "<token>" }`
-- Response: new access token (and expiry)
+**Request Body**:
 
-Notes:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-- Refresh tokens valid for ~7 days
-- Use the refresh endpoint when access token is near expiry
+**Response** (200 OK):
+
+```json
+{
+  "valid": true,
+  "claims": {
+    "user_id": "user_id_here",
+    "role": "user",
+    "exp": 1705320000
+  }
+}
+```
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid input format
+- `401 Unauthorized`: Invalid or expired token
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/auth/validate`
+- Body: raw JSON `{ "access_token": "{{accessToken}}" }`
+
+---
+
+### 2. Refresh Access Token
+
+Get a new access token using a refresh token.
+
+**Endpoint**: `POST /api/auth/refresh`
+
+**Request Body**:
+
+```json
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Response** (200 OK):
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 900
+}
+```
+
+**Notes**:
+
+- Refresh tokens are valid for 7 days
+- Old access token remains valid until it expires
+- Use this endpoint when access token is about to expire
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid input format
+- `401 Unauthorized`: Invalid or expired refresh token
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/auth/refresh`
+- Body: raw JSON `{ "refresh_token": "{{refreshToken}}" }`
 
 ---
 
 ## OAuth Integration
 
-Supports OAuth login with `google`, `github`, `facebook`.
+Our platform supports OAuth login with Google, GitHub, and Facebook.
 
-### Initiate OAuth Flow
+### 1. Initiate OAuth Flow
 
-- `GET /api/auth/{provider}/login`
-- Providers: `google`, `github`, `facebook`
-- Response includes `auth_url` to redirect user to.
+Start the OAuth authentication process.
 
-### Handle OAuth Callback
+**Endpoint**: `GET /api/auth/{provider}/login`
 
-- `GET /api/auth/{provider}/callback?code={authorization_code}&state={state}`
-- Response contains access and refresh tokens and user info
+**Providers**: `google`, `github`, `facebook`
 
-### Link OAuth Account
+**Response** (200 OK):
 
-- `POST /api/auth/{provider}/link` (auth required)
-- Body: `{ "code": "authorization_code_from_oauth_provider" }`
+```json
+{
+  "auth_url": "https://accounts.google.com/oauth/authorize?...",
+  "provider": "google"
+}
+```
+
+**Usage**:
+
+1. Call this endpoint to get the authorization URL
+2. Redirect user to the `auth_url`
+3. User will be redirected back to your callback URL with an authorization code
+
+Postman:
+
+- Method: GET
+- URL: `{{baseUrl}}/api/auth/github/login` (or other provider)
+
+---
+
+### 2. Handle OAuth Callback
+
+Process the OAuth callback and authenticate the user.
+
+**Endpoint**: `GET /api/auth/{provider}/callback?code={authorization_code}&state={state}`
+
+**Response** (200 OK):
+
+```json
+{
+  "message": "OAuth login successful",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "is_new_user": true,
+  "user": {
+    "id": "user_id_here",
+    "username": "john_doe",
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john@example.com"
+  }
+}
+```
+
+**Notes**:
+
+- `is_new_user` indicates if this is the first time the user logged in with OAuth
+- User receives access and refresh tokens just like regular login
+- If user doesn't exist, a new account is created automatically
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid authorization code or OAuth error
+
+Postman:
+
+- Method: GET
+- URL: `{{baseUrl}}/api/auth/{provider}/callback?code=AUTH_CODE&state=STATE`
+
+---
+
+### 3. Link OAuth Account
+
+Link an OAuth provider to an existing user account (requires authentication).
+
+**Endpoint**: `POST /api/auth/{provider}/link`
+
+**Headers**: `Authorization: Bearer <access_token>`
+
+**Request Body**:
+
+```json
+{
+  "code": "authorization_code_from_oauth_provider"
+}
+```
+
+**Response** (200 OK):
+
+```json
+{
+  "message": "OAuth account linked successfully",
+  "provider": "google"
+}
+```
+
+**Notes**:
+
+- User must be authenticated
+- This allows users to link multiple OAuth providers to their account
+- Useful for account recovery and convenience
+
+**Error Responses**:
+
+- `400 Bad Request`: Invalid authorization code or OAuth error
+- `401 Unauthorized`: Invalid or missing token
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/auth/{provider}/link`
+- Headers: `Authorization: Bearer {{accessToken}}`
+- Body: raw JSON `{ "code": "AUTH_CODE_FROM_PROVIDER" }`
 
 ---
 
 ## Admin Operations
 
-> Admin-only endpoints — require admin access token
+These endpoints are only available to users with admin role.
 
-### Promote User to Admin
+### 1. Promote User to Admin
 
-- `POST /api/admin/users/{userID}/promote`
-- 200 Response:
+Promote a regular user to admin role.
+
+**Endpoint**: `POST /api/admin/users/{userID}/promote`
+
+**Headers**: `Authorization: Bearer <admin_access_token>`
+
+**Path Parameters**:
+
+- `userID`: ID of the user to promote
+
+**Response** (200 OK):
 
 ```json
 {
@@ -152,12 +554,40 @@ Supports OAuth login with `google`, `github`, `facebook`.
 }
 ```
 
-Business rules: only admins can promote, cannot promote self, target must exist, cannot promote if already admin.
+**Business Rules**:
 
-### Demote Admin to User
+- Only admins can promote users
+- Admin cannot promote themselves
+- Target user must exist and be active
+- User cannot be promoted if already an admin
 
-- `POST /api/admin/users/{userID}/demote`
-- 200 Response:
+**Error Responses**:
+
+- `400 Bad Request`: Business rule violations
+- `401 Unauthorized`: Invalid or missing token
+- `403 Forbidden`: User is not an admin
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/admin/users/{userID}/promote`
+- Headers: `Authorization: Bearer {{accessToken}}` (admin)
+
+---
+
+### 2. Demote Admin to User
+
+Demote an admin back to regular user role.
+
+**Endpoint**: `POST /api/admin/users/{userID}/demote`
+
+**Headers**: `Authorization: Bearer <admin_access_token>`
+
+**Path Parameters**:
+
+- `userID`: ID of the admin to demote
+
+**Response** (200 OK):
 
 ```json
 {
@@ -167,7 +597,24 @@ Business rules: only admins can promote, cannot promote self, target must exist,
 }
 ```
 
-Business rules: only admins can demote others, cannot demote self, cannot demote last admin.
+**Business Rules**:
+
+- Only admins can demote other admins
+- Admin cannot demote themselves
+- Cannot demote the last admin in the system
+- Target user must be an admin
+
+**Error Responses**:
+
+- `400 Bad Request`: Business rule violations
+- `401 Unauthorized`: Invalid or missing token
+- `403 Forbidden`: User is not an admin
+
+Postman:
+
+- Method: POST
+- URL: `{{baseUrl}}/api/admin/users/{userID}/demote`
+- Headers: `Authorization: Bearer {{accessToken}}` (admin)
 
 ---
 
