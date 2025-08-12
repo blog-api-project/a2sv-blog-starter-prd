@@ -8,8 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type OAuthUseCase struct {
@@ -17,22 +15,22 @@ type OAuthUseCase struct {
 	oauthRepo     repositories.IOAuthRepository
 	oauthServices map[string]services.IOAuthService
 	tokenUseCase  usecases.ITokenUseCase
-    roleRepo      repositories.IRoleRepository
+	roleRepo      repositories.IRoleRepository
 }
 
 func NewOAuthUseCase(
 	userRepo repositories.IUserRepository,
 	oauthRepo repositories.IOAuthRepository,
 	oauthServices map[string]services.IOAuthService,
-    tokenUseCase usecases.ITokenUseCase,
-    roleRepo repositories.IRoleRepository,
+	tokenUseCase usecases.ITokenUseCase,
+	roleRepo repositories.IRoleRepository,
 ) *OAuthUseCase {
 	return &OAuthUseCase{
 		userRepo:      userRepo,
 		oauthRepo:     oauthRepo,
 		oauthServices: oauthServices,
-        tokenUseCase:  tokenUseCase,
-        roleRepo:      roleRepo,
+		tokenUseCase:  tokenUseCase,
+		roleRepo:      roleRepo,
 	}
 }
 
@@ -43,7 +41,6 @@ func (uc *OAuthUseCase) InitiateOAuthFlow(provider string) (string, error) {
 		return "", fmt.Errorf("unsupported OAuth provider: %s", provider)
 	}
 
-	// For class project simplicity, no state
 	authURL, err := oauthService.GetAuthURL("")
 	if err != nil {
 		return "", fmt.Errorf("failed to generate auth URL: %v", err)
@@ -52,14 +49,13 @@ func (uc *OAuthUseCase) InitiateOAuthFlow(provider string) (string, error) {
 	return authURL, nil
 }
 
-// processes the OAuth callback and creates/links user
+// HandleOAuthCallback processes the OAuth callback and creates/links user
 func (uc *OAuthUseCase) HandleOAuthCallback(provider, code, state string) (*models.OAuthLoginResult, error) {
 	oauthService, exists := uc.oauthServices[provider]
 	if !exists {
 		return nil, fmt.Errorf("unsupported OAuth provider: %s", provider)
 	}
 
-	// Exchange code for token
 	token, err := oauthService.ExchangeCodeForToken(code)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code for token: %v", err)
@@ -71,7 +67,7 @@ func (uc *OAuthUseCase) HandleOAuthCallback(provider, code, state string) (*mode
 	}
 
 	existingOAuthUser, err := uc.oauthRepo.GetOAuthUserByProviderID(provider, userInfo.ProviderID)
-	if err != nil && !errors.Is(err, mongo.ErrNoDocuments)  {
+	if err != nil && !errors.Is(err, repositories.ErrNotFound) {
 		return nil, fmt.Errorf("failed to check existing OAuth user: %v", err)
 	}
 
@@ -79,7 +75,6 @@ func (uc *OAuthUseCase) HandleOAuthCallback(provider, code, state string) (*mode
 	var isNewUser bool
 
 	if existingOAuthUser != nil {
-		// get the linked user
 		user, err = uc.userRepo.GetUserByID(existingOAuthUser.UserID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get linked user: %v", err)
@@ -94,7 +89,7 @@ func (uc *OAuthUseCase) HandleOAuthCallback(provider, code, state string) (*mode
 		}
 	} else {
 		existingUser, err := uc.userRepo.GetUserByEmail(userInfo.Email)
-		if err != nil && !errors.Is(err, mongo.ErrNoDocuments)  {
+		if err != nil && !errors.Is(err, repositories.ErrNotFound) {
 			return nil, fmt.Errorf("failed to check existing user: %v", err)
 		}
 
@@ -102,7 +97,6 @@ func (uc *OAuthUseCase) HandleOAuthCallback(provider, code, state string) (*mode
 			user = existingUser
 			isNewUser = false
 
-		
 			oauthUser := &models.OAuthUser{
 				Provider:     provider,
 				ProviderID:   userInfo.ProviderID,
@@ -121,25 +115,24 @@ func (uc *OAuthUseCase) HandleOAuthCallback(provider, code, state string) (*mode
 				return nil, fmt.Errorf("failed to create OAuth user: %v", err)
 			}
 		} else {
-			
-            user = &models.User{
-                Email:     userInfo.Email,
-                FirstName: userInfo.Name,
-                Username:  userInfo.Email, 
-                IsActive:  true,
-                CreatedAt: time.Now(),
-                UpdatedAt: time.Now(),
-            }
+			user = &models.User{
+				Email:     userInfo.Email,
+				FirstName: userInfo.Name,
+				Username:  userInfo.Email,
+				IsActive:  true,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
 
-            if uc.roleRepo != nil {
-                if roleID, err := uc.roleRepo.GetRoleIDByName("user"); err == nil && roleID != "" {
-                    user.RoleID = roleID
-                } else {
-                    user.RoleID = "user"
-                }
-            } else {
-                user.RoleID = "user"
-            }
+			if uc.roleRepo != nil {
+				if roleID, err := uc.roleRepo.GetRoleIDByName("user"); err == nil && roleID != "" {
+					user.RoleID = roleID
+				} else {
+					user.RoleID = "user"
+				}
+			} else {
+				user.RoleID = "user"
+			}
 
 			if err := uc.userRepo.CreateUser(user); err != nil {
 				return nil, fmt.Errorf("failed to create user: %v", err)
@@ -180,7 +173,7 @@ func (uc *OAuthUseCase) HandleOAuthCallback(provider, code, state string) (*mode
 	}, nil
 }
 
-// links an OAuth account to an existing user
+// LinkOAuthToExistingUser links an OAuth account to an existing user
 func (uc *OAuthUseCase) LinkOAuthToExistingUser(provider, code, userID string) error {
 	oauthService, exists := uc.oauthServices[provider]
 	if !exists {
@@ -198,7 +191,7 @@ func (uc *OAuthUseCase) LinkOAuthToExistingUser(provider, code, userID string) e
 	}
 
 	existingOAuthUser, err := uc.oauthRepo.GetOAuthUserByProviderID(provider, userInfo.ProviderID)
-	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+	if err != nil && !errors.Is(err, repositories.ErrNotFound) {
 		return fmt.Errorf("failed to check existing OAuth user: %v", err)
 	}
 
@@ -206,7 +199,6 @@ func (uc *OAuthUseCase) LinkOAuthToExistingUser(provider, code, userID string) e
 		return fmt.Errorf("OAuth account already linked to another user")
 	}
 
-	
 	oauthUser := &models.OAuthUser{
 		Provider:     provider,
 		ProviderID:   userInfo.ProviderID,
@@ -222,5 +214,3 @@ func (uc *OAuthUseCase) LinkOAuthToExistingUser(provider, code, userID string) e
 
 	return uc.oauthRepo.CreateOAuthUser(oauthUser)
 }
-
-
