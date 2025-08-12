@@ -1,8 +1,8 @@
-package services
+package usecases
 
 import "context"
 
-type AIService interface {
+type IAIUseCase interface {
 	GenerateBlogPost(ctx context.Context, topic string) (string, error)
 	SuggestImprovements(ctx context.Context, content string) (string, error)
 }
