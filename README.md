@@ -56,7 +56,7 @@ Welcome! This is a backend API for a modern blog platform. It focuses on clean e
 
 ```bash
 git clone <your-repo-url>
-cd blog_project
+cd blog_api
 go mod tidy
 ```
 
