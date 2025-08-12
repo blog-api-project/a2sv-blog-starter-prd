@@ -14,7 +14,8 @@ func SetupRouter(
 	oauthController *controllers.OAuthController,
 	adminController *controllers.AdminController,
 	blogController *controllers.BlogController,
-	CommentController *controllers.CommentController,
+	commentController *controllers.CommentController,
+	aiController *controllers.AIController, // Added AI controller
 	jwtService contracts_services.IJWTService,
 ) *gin.Engine {
 	router := gin.Default()
@@ -45,13 +46,18 @@ func SetupRouter(
 	{
 		oauthRoutes.GET("/:provider/login", oauthController.InitiateOAuthFlow)
 		oauthRoutes.GET("/:provider/callback", oauthController.HandleOAuthCallback)
-		oauthRoutes.POST("/:provider/link", infrastructure.AuthMiddleware(jwtService),
-			infrastructure.RBACMiddleware("user", "admin"), oauthController.LinkOAuthToExistingUser)
+		oauthRoutes.POST("/:provider/link", 
+			infrastructure.AuthMiddleware(jwtService),
+			infrastructure.RBACMiddleware("user", "admin"), 
+			oauthController.LinkOAuthToExistingUser)
 	}
 
 	// Admin routes
 	adminRoutes := router.Group("/api/admin")
-	adminRoutes.Use(infrastructure.AuthMiddleware(jwtService), infrastructure.RBACMiddleware("admin"))
+	adminRoutes.Use(
+		infrastructure.AuthMiddleware(jwtService), 
+		infrastructure.RBACMiddleware("admin"),
+	)
 	{
 		adminRoutes.POST("/users/:userID/promote", adminController.PromoteUser)
 		adminRoutes.POST("/users/:userID/demote", adminController.DemoteUser)
@@ -65,20 +71,33 @@ func SetupRouter(
 		blogRoutes.GET("/", blogController.GetBlogs)
 		blogRoutes.PUT("/:id", blogController.UpdateBlogHandler)
 		blogRoutes.DELETE("/:id", blogController.DeleteBlogHandler)
-		blogRoutes.GET("/search",blogController.SearchBlogsHandler)
-		blogRoutes.POST("/:id/like",blogController.LikeBlog)
-		blogRoutes.POST("/:id/dislike",blogController.DislikeBlog)
+		blogRoutes.GET("/search", blogController.SearchBlogsHandler)
+		blogRoutes.POST("/:id/like", blogController.LikeBlog)
+		blogRoutes.POST("/:id/dislike", blogController.DislikeBlog)
+		blogRoutes.POST("/:id/generate-content",
+			infrastructure.RBACMiddleware("user", "admin"),
+			aiController.GenerateBlogContentForPost)
 	}
 
-	//comment routes
+	// Comment routes
 	commentRoutes := router.Group("/api/comments")
 	commentRoutes.Use(infrastructure.AuthMiddleware(jwtService))
 	{ 
-		commentRoutes.POST("/create/:id",CommentController.CreateComment)
-		commentRoutes.PUT("/:id",CommentController.UpdateComment)
-		commentRoutes.DELETE("/:id",CommentController.DeleteComment)
-	
+		commentRoutes.POST("/create/:id", commentController.CreateComment)
+		commentRoutes.PUT("/:id", commentController.UpdateComment)
+		commentRoutes.DELETE("/:id", commentController.DeleteComment)
+	}
 
+	// AI routes
+	aiRoutes := router.Group("/api/ai")
+	aiRoutes.Use(infrastructure.AuthMiddleware(jwtService))
+	{
+		aiRoutes.POST("/generate", 
+			infrastructure.RBACMiddleware("user", "admin"),
+			aiController.GenerateBlogPost)
+		aiRoutes.POST("/suggest-improvements", 
+			infrastructure.RBACMiddleware("user", "admin"),
+			aiController.SuggestImprovements)
 	}
 
 	return router

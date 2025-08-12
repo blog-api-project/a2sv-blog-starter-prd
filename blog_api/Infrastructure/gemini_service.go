@@ -6,25 +6,28 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/status"
 )
 
+// GeminiConfig holds configuration for the Gemini service
 type GeminiConfig struct {
 	Model       string   // Required
-	MaxTokens   *int     // Changed to pointer (nil = use API default)
-	Temperature *float32 // Changed to pointer
+	MaxTokens   *int     // Optional: nil for API default
+	Temperature *float32 // Optional: nil for API default
 }
 
+// GeminiService implements AIService using Google's Gemini API
 type GeminiService struct {
 	client *genai.Client
 	config GeminiConfig
 }
 
+// NewGeminiService creates a new Gemini service instance
 func NewGeminiService(cfg GeminiConfig) (*GeminiService, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
@@ -42,25 +45,44 @@ func NewGeminiService(cfg GeminiConfig) (*GeminiService, error) {
 	}, nil
 }
 
+// GenerateBlogPost generates blog content based on a topic
 func (s *GeminiService) GenerateBlogPost(ctx context.Context, topic string) (string, error) {
 	log.Printf("Generating blog post about: %s", topic)
 	defer func(start time.Time) {
 		log.Printf("Generation completed in %v", time.Since(start))
 	}(time.Now())
 
-	model := s.client.GenerativeModel(s.config.Model)
-	model.Temperature = s.config.Temperature // Now using pointer directly
-	
-	if s.config.MaxTokens != nil {
-		maxTokens := int32(*s.config.MaxTokens)
-		model.MaxOutputTokens = &maxTokens // Assign pointer to int32
-	}
-
-	prompt := fmt.Sprintf(
+	return s.generateContent(ctx, fmt.Sprintf(
 		"Write a 300-word professional blog post about: %s\n"+
 			"Format: Markdown with headings (##), bullet points, and 1-2 code blocks\n"+
 			"Tone: Technical but accessible\n"+
-			"Audience: Software developers", topic)
+			"Audience: Software developers", topic))
+}
+
+// SuggestImprovements suggests improvements for existing content
+func (s *GeminiService) SuggestImprovements(ctx context.Context, content string) (string, error) {
+	log.Printf("Suggesting improvements for content")
+	defer func(start time.Time) {
+		log.Printf("Suggestion completed in %v", time.Since(start))
+	}(time.Now())
+
+	return s.generateContent(ctx, fmt.Sprintf(
+		"Suggest improvements for the following content:\n\n%s\n\n"+
+			"Focus on clarity, technical accuracy, and engagement.\n"+
+			"Format: Markdown bullet points\n"+
+			"Tone: Constructive and professional", content))
+}
+
+// Common content generation logic
+func (s *GeminiService) generateContent(ctx context.Context, prompt string) (string, error) {
+	model := s.client.GenerativeModel(s.config.Model)
+	if s.config.Temperature != nil {
+		model.Temperature = s.config.Temperature
+	}
+	if s.config.MaxTokens != nil {
+		maxTokens := int32(*s.config.MaxTokens)
+		model.MaxOutputTokens = &maxTokens
+	}
 
 	resp, err := model.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
@@ -74,7 +96,6 @@ func (s *GeminiService) GenerateBlogPost(ctx context.Context, topic string) (str
 		return "", errors.New("empty response from API")
 	}
 
-	// Check all parts for text content
 	var generatedText strings.Builder
 	for _, part := range resp.Candidates[0].Content.Parts {
 		if text, ok := part.(genai.Text); ok {
@@ -86,9 +107,10 @@ func (s *GeminiService) GenerateBlogPost(ctx context.Context, topic string) (str
 		return "", errors.New("no valid text content in response")
 	}
 
-	return generatedText.String(), nil
+	return strings.TrimSpace(generatedText.String()), nil
 }
 
+// clean up geminai resource
 func (s *GeminiService) Close() error {
 	if s.client != nil {
 		return s.client.Close()

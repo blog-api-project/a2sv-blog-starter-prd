@@ -51,7 +51,7 @@ func main() {
 	tokenRepo := repositories.NewMongoTokenRepository(db.Collection("access_tokens"), db.Collection("refresh_tokens"))
 	oauthRepo := repositories.NewMongoOAuthRepository(db.Collection("oauth_users"))
 	roleRepo := repositories.NewMongoRoleRepository(db.Collection("roles"))
-	blogRepo := repositories.NewMongoBlogRepository(db.Collection("Blogs"),db.Collection("Blog_interaction"))
+	blogRepo := repositories.NewMongoBlogRepository(db.Collection("Blogs"), db.Collection("Blog_interaction"))
 	commRepo := repositories.NewMongoCommentRepository(db.Collection("Comments"))
 
 	// Initialize services
@@ -60,6 +60,21 @@ func main() {
 	validationSvc := infrastructure.NewValidationService()
 	emailSvc := infrastructure.NewEmailService()
 	imageSvc := infrastructure.NewImageService(uploadDir)
+
+	maxTokens := 1000
+	temperature := float32(0.7)
+	
+	aiConfig := infrastructure.GeminiConfig{
+		Model:       os.Getenv("GEMINI_MODEL"),
+		MaxTokens:   &maxTokens,    // Direct pointer
+		Temperature: &temperature, // Direct pointer
+	}
+	aiService, err := infrastructure.NewGeminiService(aiConfig)
+	if err != nil {
+		log.Fatalf("Failed to initialize AI service: %v", err)
+	}
+
+	defer aiService.Close()
 
 	// Dev seeding: roles + initial admin account 
 	if os.Getenv("ENV") != "production" {
@@ -123,8 +138,9 @@ func main() {
 	userUseCase := usecases.NewUserUseCase(userRepo, passwordSvc, jwtSvc, validationSvc, emailSvc, tokenUseCase, roleRepo)
 	oauthUseCase := usecases.NewOAuthUseCase(userRepo, oauthRepo, oauthServices, tokenUseCase, roleRepo)
 	adminUseCase := usecases.NewAdminUseCase(userRepo, roleRepo)
-	blogUseCase := usecases.NewBlogUseCase(blogRepo,userRepo)
-	commentUseCase := usecases.NewCommentUseCases(commRepo,blogRepo)
+	blogUseCase := usecases.NewBlogUseCase(blogRepo, userRepo)
+	commentUseCase := usecases.NewCommentUseCases(commRepo, blogRepo)
+	aiUseCase := usecases.NewAIUseCase(aiService)
 
 	// Initialize controllers
 	userController := controllers.NewUserController(userUseCase, tokenUseCase, jwtSvc)
@@ -133,9 +149,19 @@ func main() {
 	adminController := controllers.NewAdminController(adminUseCase)
 	blogController := controllers.NewBlogController(blogUseCase, imageSvc)
 	commentController := controllers.NewCommentController(commentUseCase)
+	aiController := controllers.NewAIController(aiUseCase)
 
 	// Setup router
-	router := routers.SetupRouter(userController, tokenController, oauthController, adminController, blogController, commentController,jwtSvc)
+	router := routers.SetupRouter(
+		userController,
+		tokenController,
+		oauthController,
+		adminController,
+		blogController,
+		commentController,
+		aiController,
+		jwtSvc,
+	)
 
 	// Get port from environment variable or use default
 	port := os.Getenv("PORT")
