@@ -97,9 +97,8 @@ func (tc *TokenController) RefreshToken(c *gin.Context) {
 		return
 	}
 
+	c.SetCookie("access_token", newAccessTokenModel.Token, 900, "/", "", true, true) // 15 min expiry, Secure & HttpOnly
 	c.IndentedJSON(http.StatusOK, gin.H{
-		"access_token": newAccessTokenModel.Token,
-		"token_type":   "Bearer",
-		"expires_in":   900, // 15 minutes
+		"message": "Token refreshed successfully",
 	})
 } 

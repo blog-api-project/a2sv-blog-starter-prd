@@ -2,7 +2,6 @@ package infrastructure
 
 import (
 	"net/http"
-	"strings"
 
 	"blog_api/Domain/contracts/services"
 	"github.com/gin-gonic/gin"
@@ -10,19 +9,12 @@ import (
 
 func AuthMiddleware(jwtService services.IJWTService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header missing"})
+		token, err := c.Cookie("access_token")
+		if err != nil || token == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Access token cookie missing"})
 			return
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization format"})
-			return
-		}
-
-		token := parts[1]
 		claims, err := jwtService.ValidateJWT(token)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})

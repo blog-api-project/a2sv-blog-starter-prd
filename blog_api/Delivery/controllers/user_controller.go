@@ -73,12 +73,10 @@ func (uc *UserController) Login(c *gin.Context) {
 		return
 	}
 	
+	c.SetCookie("access_token", accessTokenModel.Token, 900, "/", "", true, true) // 15 min expiry, Secure & HttpOnly
+	c.SetCookie("refresh_token", refreshTokenModel.Token, 7*24*3600, "/", "", true, true) // 7 days expiry, Secure & HttpOnly
 	c.IndentedJSON(http.StatusOK, gin.H{
 		"message": "Login successful",
-		"access_token": accessTokenModel.Token,
-		"refresh_token": refreshTokenModel.Token,
-		"token_type": "Bearer",
-		"expires_in": 900, // 15 minutes
 	})
 }
 
