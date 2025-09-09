@@ -22,15 +22,6 @@ Welcome! This is a backend API for a modern blog platform. It focuses on clean e
 - Email: SMTP (password reset)
 - Testing: `testing` + `testify`
 
-## 🎯 Goals (from the PRD)
-
-- RESTful API with clear endpoints
-- Blog CRUD (create, read, update, delete)
-- Authentication & authorization (JWT, RBAC, OAuth2)
-- Tags, filtering, search (extensible design)
-- AI hooks for content suggestions (future-ready)
-- Performance & scalability in mind
-
 ### Feature Matrix (status)
 
 - Users: registration, login, forgot/reset password, logout, profile update — ✅ implemented
@@ -144,20 +135,20 @@ Permissions:
 - Create/Update/Delete: author; Admin can delete any
 - Read: public
 
-## 🔎 Search, Filter, Tags (implemented)
+## 🔎 Search, Filter, Tags 
 
 - Full-text search on title/content via `q` query param
 - Filters: `tags` (comma-separated), `author`, `date_from`, `date_to`
 - Sorting: `sort=recent|popular|commented`
 - Pagination: `page`, `page_size` on list endpoints
 
-## 📈 Popularity Tracking (implemented)
+## 📈 Popularity Tracking 
 
 - Views incremented on GET `/api/blogs/:id`
 - Likes/dislikes: one reaction per user, toggle behavior
 - Metrics endpoint: GET `/api/blogs/:id/metrics` returns views, likes, comments count
 
-## 🤖 AI Integration (implemented)
+## 🤖 AI Integration 
 
 - POST `/api/ai/suggest`
   - Body: { title?, keywords?: [string], draft_content?: string }
@@ -171,13 +162,7 @@ Permissions:
 - Performance: pagination on list endpoints; indexes on frequent queries (author, tags, created_at); consider caching hot reads
 - Reliability: timeouts on external calls; clear error handling; logs
 
-## 🧭 Development Tips
-
-- Use Postman with an environment: `baseUrl`, `accessToken`, `refreshToken`
-- Start with register → login → validate → profile update → refresh
-- For admin endpoints, use an admin token
-
-## 🗺️ Roadmap Checklist (PRD)
+## 🗺️ Roadmap Checklist 
 
 - [x] User registration, login, logout, profile update
 - [x] JWT auth (access/refresh), validation/refresh flow
