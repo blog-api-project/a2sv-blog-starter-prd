@@ -22,16 +22,6 @@ Welcome! This is a backend API for a modern blog platform. It focuses on clean e
 - Email: SMTP (password reset)
 - Testing: `testing` + `testify`
 
-### Feature Matrix (status)
-
-- Users: registration, login, forgot/reset password, logout, profile update — ✅ implemented
-- Tokens: validate, refresh — ✅ implemented
-- RBAC and Admin: promote/demote — ✅ implemented
-- OAuth2 login (Google/GitHub/Facebook) — ✅ implemented
-- Blog posts (CRUD) — ✅ implemented
-- Tags, filtering, search — ✅ implemented
-- Popularity tracking (likes/views/comments) — ✅ implemented
-- AI content suggestions — ✅ implemented
 
 ## 🧱 Architecture at a Glance
 
@@ -115,7 +105,7 @@ go test ./...
 - Blog Interactions: like, dislike, metrics
 - AI: suggest content
 
-Full details: see `docs/api_documentation.md` ✅
+Full details: see `docs/api_documentation.md` 
 
 ## ✍️ Blog Module (implemented)
 
@@ -162,26 +152,6 @@ Permissions:
 - Performance: pagination on list endpoints; indexes on frequent queries (author, tags, created_at); consider caching hot reads
 - Reliability: timeouts on external calls; clear error handling; logs
 
-## 🗺️ Roadmap Checklist 
-
-- [x] User registration, login, logout, profile update
-- [x] JWT auth (access/refresh), validation/refresh flow
-- [x] Forgot/reset password via email
-- [x] RBAC + Admin promote/demote
-- [x] OAuth2 login/link (Google/GitHub/Facebook)
-- [x] Blog CRUD endpoints
-- [x] Search, tags, filtering
-- [x] Popularity tracking (views, likes, comments)
-- [x] AI content suggestions
-
-## 🧩 Extending to Full Blog Features
-
-This starter is built to expand into:
-
-- Blog CRUD (posts, comments)
-- Search and tag-based filtering
-- Popularity metrics (likes, views, comments)
-- AI-assisted content suggestions
 
 ## 🛠️ Project Structure
 
